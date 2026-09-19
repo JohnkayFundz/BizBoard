@@ -52,7 +52,7 @@ export default function App(){
   if(!target)return
   let url=target.trim()
   if(outreachChannel==='Email')url=`mailto:${target.trim()}?subject=${encodeURIComponent(`Quick idea for ${outreachLead.company||'your business'}`)}&body=${encodeURIComponent(outreachMessage.trim())}`
-  if(outreachChannel==='WhatsApp'){let n=target.replace(/\\D/g,'');if(n.startsWith('0'))n='234'+n.slice(1);url=`https://wa.me/${n}?text=${encodeURIComponent(outreachMessage.trim())}`}
+  if(outreachChannel==='WhatsApp'){let n=target.replace(/\D/g,'');if(n.startsWith('0'))n='234'+n.slice(1);url=`https://wa.me/${n}?text=${encodeURIComponent(outreachMessage.trim())}`}
   if(outreachChannel==='Instagram'){const handle=target.trim().replace(/^@/,'');url=handle.startsWith('http')?handle:`https://instagram.com/${handle}`}
   window.open(url,'_blank','noopener,noreferrer')
  }

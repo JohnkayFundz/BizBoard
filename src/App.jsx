@@ -17,7 +17,8 @@ export default function App(){
  const [email,setEmail]=useState(''),[password,setPassword]=useState(''),[authMsg,setAuthMsg]=useState('')
  const [leads,setLeads]=useState([]),[query,setQuery]=useState(''),[status,setStatus]=useState('All'),[source,setSource]=useState('All')
  const [modal,setModal]=useState(false),[form,setForm]=useState(empty),[saving,setSaving]=useState(false),[syncing,setSyncing]=useState(false),[toast,setToast]=useState('')
- const [activityLead,setActivityLead]=useState(null),[activities,setActivities]=useState([]),[activityType,setActivityType]=useState('Note'),[activityNote,setActivityNote]=useState(''),[activityFollowUp,setActivityFollowUp]=useState(''),[activityLoading,setActivityLoading]=useState(false),[activitySaving,setActivitySaving]=useState(false)\n const [outreachLead,setOutreachLead]=useState(null),[outreachChannel,setOutreachChannel]=useState('Email'),[outreachMessage,setOutreachMessage]=useState(''),[outreachCopied,setOutreachCopied]=useState(false)
+ const [activityLead,setActivityLead]=useState(null),[activities,setActivities]=useState([]),[activityType,setActivityType]=useState('Note'),[activityNote,setActivityNote]=useState(''),[activityFollowUp,setActivityFollowUp]=useState(''),[activityLoading,setActivityLoading]=useState(false),[activitySaving,setActivitySaving]=useState(false)
+ const [outreachLead,setOutreachLead]=useState(null),[outreachChannel,setOutreachChannel]=useState('Email'),[outreachMessage,setOutreachMessage]=useState(''),[outreachCopied,setOutreachCopied]=useState(false)
 
  useEffect(()=>{if(!supabase){setLoading(false);return} supabase.auth.getSession().then(({data})=>{setSession(data.session);setLoading(false)});const {data:{subscription}}=supabase.auth.onAuthStateChange((_e,s)=>setSession(s));return()=>subscription.unsubscribe()},[])
  useEffect(()=>{if(session)load()},[session])

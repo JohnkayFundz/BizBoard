@@ -31,7 +31,7 @@ export default function App(){
  function outreachTemplate(l,channel){
   const name=l?.contact_name?.split(' ')[0]||'there'
   const company=l?.company||'your business'
-  if(channel==='Email')return `Hi ${name}, I came across ${company} and noticed there may be an opportunity to make the website experience stronger for customers. I build modern, mobile-friendly websites and e-commerce solutions for businesses. I’d be happy to share a quick idea for ${company} if you’re open to it. — John, King JohnKay Fundz`
+  if(channel==='Email')return `Hi ${name},\n\nI came across ${company} and wanted to reach out. I’m a web developer based in Lagos, and I help businesses improve their online presence with modern, mobile-friendly websites and e-commerce solutions.\n\nI have a quick idea that could help ${company} present its products more effectively online. If you’re open to it, I’d be happy to show you.\n\nBest,\nJohn\nKing JohnKay Fundz`
   if(channel==='Instagram')return `Hi ${name} 👋 I came across ${company} and wanted to reach out. I build modern websites and e-commerce stores that help businesses present their products/services professionally online. I can share a quick idea for your brand if you’re interested. — JohnKay Fundz`
   return `Hi ${name}, I’m John from King JohnKay Fundz. I came across ${company} and wanted to ask if you currently have a website or are considering improving your online presence. I can share a quick demo/idea for your business if useful.`
  }

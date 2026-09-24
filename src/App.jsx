@@ -5,6 +5,7 @@ import { leadSchema, intelligenceSchema, proposalSchema, cleanText } from './lib
 import { env, envError } from './lib/env'
 import { assessIntelligence, normalizeWebsiteUrl } from './utils/intelligence'
 import { calculatePipelineMetrics, findPotentialDuplicateLeads } from './utils/pipeline'
+import { buildMailtoUrl, buildWhatsAppUrl, buildInstagramInboxUrl, normalizeWhatsAppPhone } from './utils/outreach'
 import { downloadProposalPdf } from './utils/pdfGenerator'
 import { Metric, Select, FollowupCard } from './components/Ui'
 import { LeadIntelligence } from './components/LeadIntelligence'
@@ -115,34 +116,52 @@ function outreachTemplate(l,channel){
   try{await navigator.clipboard.writeText(outreachMessage);setOutreachCopied(true);notify('Outreach message copied');setTimeout(()=>setOutreachCopied(false),1800)}
   catch{notify('Copy failed — select the message and copy it manually')}
  }
- async function sendOutreach(){
-  if(!outreachLead||!outreachMessage.trim()||outreachSending)return
-  if(outreachChannel==='Email'){
-   if(!outreachLead.email){notify('This lead has no email address');return}
-   setOutreachSending(true)
-   try{
-    const subject=`Quick idea for ${(outreachLead.company||'your business').replace(/\s*[—-]\s*Website\s*$/i,'')}`
-    const r=await supabase.functions.invoke('send-gmail',{body:{lead_id:outreachLead.id,to:outreachLead.email,subject,text:outreachMessage.trim()}})
-    if(r.error||!r.data?.success){notify(r.data?.error||r.error?.message||'Email sending failed');return}
-    setLeads(x=>x.map(a=>a.id===outreachLead.id?r.data.lead:a))
-    setOutreachLead(r.data.lead)
-    if(activityLead?.id===outreachLead.id)setActivities(x=>[r.data.activity,...x])
-    notify(`Email sent · follow-up set for ${r.data.follow_up}`)
-   }catch(error){notify(error instanceof Error?error.message:'Email sending failed')}
-   finally{setOutreachSending(false)}
-   return
+ async function recordOutreachActivity(lead, type, message){
+  const r=await supabase.from('crm_lead_activity').insert({lead_id:lead.id,activity_type:type,note:`Outreach sent/opened: ${message.trim()}`}).select().single()
+  if(r.error){notify(r.error.message);return null}
+  if(activityLead?.id===lead.id)setActivities(x=>[r.data,...x])
+  if(lead.status==='New Lead'){
+    const u=await supabase.from('crm_leads').update({status:'Contacted',updated_at:new Date().toISOString()}).eq('id',lead.id).select().single()
+    if(u.error){notify('Outreach recorded, but stage update failed');return r.data}
+    setLeads(x=>x.map(a=>a.id===lead.id?u.data:a));setOutreachLead(u.data)
+    if(activityLead?.id===lead.id)setActivityLead(u.data)
+    const h=await supabase.from('crm_lead_activity').insert({lead_id:lead.id,activity_type:'Stage change',note:`Stage changed from New Lead to Contacted after ${type} outreach.`}).select().single()
+    if(!h.error&&activityLead?.id===lead.id)setActivities(x=>[h.data,...x])
   }
-  const type=outreachChannel==='WhatsApp'?'WhatsApp':outreachChannel
-  const r=await supabase.from('crm_lead_activity').insert({lead_id:outreachLead.id,activity_type:type,note:`Outreach prepared/opened: ${outreachMessage.trim()}`}).select().single()
-  if(r.error){notify(r.error.message);return}
-  setActivities(x=>activityLead?.id===outreachLead.id?[r.data,...x]:x);const stageUpdate=outreachLead.status==='New Lead'||outreachLead.status==='Replied'?await supabase.from('crm_leads').update({status:'Contacted',updated_at:new Date().toISOString()}).eq('id',outreachLead.id).select().single():{data:outreachLead,error:null};if(!stageUpdate.error&&stageUpdate.data){setLeads(x=>x.map(a=>a.id===outreachLead.id?stageUpdate.data:a));setOutreachLead(stageUpdate.data);const sh=await supabase.from('crm_lead_activity').insert({lead_id:outreachLead.id,activity_type:'Stage change',note:'Stage changed from '+outreachLead.status+' to Contacted after '+outreachChannel+' outreach.'}).select().single();if(!sh.error)setActivities(x=>activityLead?.id===outreachLead.id?[sh.data,...x]:x)}notify(`${outreachChannel} outreach opened and recorded`)
-  const target=outreachChannel==='Instagram'?outreachLead.instagram:outreachLead.phone
-  if(!target)return
-  let url=target.trim()
-  if(outreachChannel==='WhatsApp'){let n=target.replace(/\D/g,'');if(n.startsWith('0'))n='234'+n.slice(1);url=`https://wa.me/${n}?text=${encodeURIComponent(outreachMessage.trim())}`}
-  if(outreachChannel==='Instagram'){const handle=target.trim().replace(/^@/,'');url=handle.startsWith('http')?handle:`https://instagram.com/${handle}`}
-  window.open(url,'_blank','noopener,noreferrer')
- }
+  return r.data
+}
+async function sendOutreach(){
+  if(!outreachLead||!outreachMessage.trim()||outreachSending)return
+  const company=(outreachLead.company||'your business').replace(/\s*[—-]\s*Website\s*$/i,'')
+  const subject=`Quick idea for ${company}`
+  const message=outreachMessage.trim()
+  if(outreachChannel==='Email'){
+    if(!outreachLead.email){notify('This lead has no email address');return}
+    const activity=await recordOutreachActivity(outreachLead,'Email',message)
+    if(!activity)return
+    window.location.href=buildMailtoUrl(outreachLead.email,subject,message)
+    notify('Email draft opened and outreach recorded')
+    return
+  }
+  if(outreachChannel==='WhatsApp'){
+    if(!normalizeWhatsAppPhone(outreachLead.phone)){notify('This lead has no valid phone number');return}
+    const activity=await recordOutreachActivity(outreachLead,'WhatsApp',message)
+    if(!activity)return
+    window.open(buildWhatsAppUrl(outreachLead.phone,message),'_blank','noopener,noreferrer')
+    notify('WhatsApp opened and outreach recorded')
+    return
+  }
+  if(outreachChannel==='Instagram')await launchInstagramOutreach()
+}
+async function launchInstagramOutreach(){
+  if(!outreachLead||!outreachMessage.trim())return
+  try{await navigator.clipboard.writeText(outreachMessage.trim());setOutreachCopied(true)}catch{}
+  const activity=await recordOutreachActivity(outreachLead,'Instagram',outreachMessage.trim())
+  if(!activity)return
+  window.open(buildInstagramInboxUrl(),'_blank','noopener,noreferrer')
+  notify('Instagram pitch copied and inbox opened')
+  setTimeout(()=>setOutreachCopied(false),1800)
+}
  function notify(x){setToast(x);setTimeout(()=>setToast(''),3000)}
  async function auth(e){e.preventDefault();setAuthMsg('');const r=mode==='login'?await supabase.auth.signInWithPassword({email,password}):await supabase.auth.signUp({email,password});if(r.error)setAuthMsg(r.error.message);else if(mode==='signup')setAuthMsg('Account created. Check your email if confirmation is enabled.')}
  async function signout(){await supabase.auth.signOut();setLeads([])}

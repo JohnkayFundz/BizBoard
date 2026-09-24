@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import { BarChart3, Bell, BriefcaseBusiness, Check, ChevronDown, Copy, ExternalLink, Filter, LogOut, Plus, RefreshCw, Search, Target, Trash2, Users, X, ArrowUpDown, ChevronLeft, ChevronRight, FileDown } from 'lucide-react'
 import { leadSchema, intelligenceSchema, proposalSchema, cleanText } from './lib/validation'
+import { assessIntelligence, normalizeWebsiteUrl } from './utils/intelligence'
 import { Metric, Select, FollowupCard } from './components/Ui'
 import { LeadIntelligence } from './components/LeadIntelligence'
 import { DashboardSummary } from './components/DashboardSummary'
@@ -112,17 +113,22 @@ function outreachTemplate(l,channel){
  function buildIntelligenceReport(result, checks=intelChecks){
   if(!intelLead)return
   const rows=[['Mobile experience',checks.mobile],['Clear call-to-action',checks.cta],['Contact options',checks.contact],['E-commerce opportunity',checks.ecommerce],['Basic SEO readiness',checks.seo]]
-  const score=result?.score ?? rows.filter(x=>x[1]).length
+  const assessment=assessIntelligence(checks,Boolean(intelLead.website||intelUrl.trim()))
+  const score=result?.score ?? assessment.score
+  const service=result?.recommended_service || assessment.recommendedService
+  const value=result?.estimated_value ? money(result.estimated_value) : money(assessment.estimatedValue)
   const gaps=rows.filter(x=>!x[1]).map(x=>x[0])
-  const service=result?.recommended_service || (checks.ecommerce?'E-commerce Website':score<=2?'Website Redesign':'Business Website')
-  const value=result?.estimated_value ? money(result.estimated_value) : (checks.ecommerce?'₦250,000':service==='Website Redesign'?'₦120,000':'₦150,000')
-  const report=['WEBSITE OPPORTUNITY REPORT','','Business: '+(intelLead.company||'Prospect'),'Contact: '+(intelLead.contact_name||'Not provided'),'Industry: '+(intelLead.niche||'Business'),'Location: '+(intelLead.location||'Not provided'),'Website: '+(intelUrl||intelLead.website||'Not provided'),result?.title?'Page title: '+result.title:'',result?.response_ms?'Server response time: '+result.response_ms+' ms':'','', 'OPPORTUNITY SCORE: '+score+'/5','','CHECKLIST',...rows.map(x=>(x[1]?'✓':'○')+' '+x[0]),'','KEY FINDINGS',...(result?.findings||[]).map(x=>'• '+x),'','KEY OPPORTUNITIES',...(result?.opportunities?.length?result.opportunities.map(x=>'• '+x):gaps.length?gaps.map(x=>'• Improve '+x.toLowerCase()):['• Strengthen the existing website experience and conversion path']),'','RECOMMENDED SERVICE: '+service,'ESTIMATED PROJECT VALUE: '+value,'','Prepared by JohnKay Fundz'].filter(Boolean).join('\\n')
+  const hasWebsite=Boolean(intelLead.website||intelUrl.trim())
+  const reportTitle=hasWebsite?'WEBSITE OPPORTUNITY REPORT':'NEW WEBSITE OPPORTUNITY REPORT'
+  const opportunities=result?.opportunities?.length?result.opportunities.map(x=>'• '+x):hasWebsite?(gaps.length?gaps.map(x=>'• Improve '+x.toLowerCase()):['• Strengthen the existing website experience and conversion path']):['• Establish a professional online presence','• Make products/services easier to discover online','• Create a clear customer enquiry or ordering path']
+  const report=[reportTitle,'','Business: '+(intelLead.company||'Prospect'),'Contact: '+(intelLead.contact_name||'Not provided'),'Industry: '+(intelLead.niche||'Business'),'Location: '+(intelLead.location||'Not provided'),'Website: '+(intelUrl||intelLead.website||'Not provided'),result?.title?'Page title: '+result.title:'',result?.response_ms?'Server response time: '+result.response_ms+' ms':'','', 'OPPORTUNITY SCORE: '+score+'/5','','CHECKLIST',...rows.map(x=>(x[1]?'✓':'○')+' '+x[0]),'','KEY FINDINGS',...(result?.findings||[]).map(x=>'• '+x),(hasWebsite?'':'• No existing website was provided; this assessment is for a new website opportunity.'),'','KEY OPPORTUNITIES',...opportunities,'','RECOMMENDED SERVICE: '+service,'ESTIMATED PROJECT VALUE: '+value,'','Prepared by JohnKay Fundz'].filter(Boolean).join('\\n')
   setIntelReport(report)
  }
  function generateIntelligence(){buildIntelligenceReport(null)}
  async function saveLeadWebsite(){
   if(!intelLead||!intelUrl.trim())return
-  const website=intelUrl.trim()
+  let website=''
+  try{website=normalizeWebsiteUrl(intelUrl)}catch(error){notify(error instanceof Error?error.message:'Enter a valid website URL');return}
   const r=await supabase.from('crm_leads').update({website,updated_at:new Date().toISOString()}).eq('id',intelLead.id).select().single()
   if(r.error){notify(r.error.message);return}
   setLeads(x=>x.map(a=>a.id===r.data.id?r.data:a));setIntelLead(r.data);setIntelUrl(r.data.website||website);notify('Website saved to lead')

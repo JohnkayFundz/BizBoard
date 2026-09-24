@@ -171,9 +171,6 @@ async function fetchJinaSearch(businessName: string, location: string): Promise<
         // Ignore malformed URLs.
       }
     }
-      }
-      if (results.length >= 10) break
-    }
     return {
       results,
       diagnostic: {

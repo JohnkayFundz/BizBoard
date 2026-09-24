@@ -3,8 +3,10 @@ import { assessIntelligence, EMPTY_INTELLIGENCE_CHECKS } from '../utils/intellig
 import type { IntelligenceChecks } from '../types/crm'
 import type { IntelligenceReport } from '../types/intelligence'
 
-type Lead={id:string|number;company?:string|null;contact_name?:string|null;website?:string|null;niche?:string|null;location?:string|null;status?:string|null}
+type Lead={id:string|number;company?:string|null;contact_name?:string|null;email?:string|null;website?:string|null;niche?:string|null;location?:string|null;status?:string|null}
 type Analysis={score?:number;recommended_service?:string;estimated_value?:number;response_ms?:number}\ntype WebsiteCandidate={url:string;domain:string;status:number|null;title:string;confidence:'verified'|'likely'|'unverified';score:number;reason:string}
+const supabase=createClient(import.meta.env.VITE_SUPABASE_URL,import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY)
+
 interface Props{
  leads:Lead[]; intelLead:Lead|null; setIntelLead:(lead:Lead|null)=>void; intelUrl:string; setIntelUrl:(value:string)=>void
  setIntelReport:(value:string)=>void; setIntelResult:(value:Analysis|null)=>void; setIntelChecks:(value:IntelligenceChecks|((current:IntelligenceChecks)=>IntelligenceChecks))=>void
@@ -23,7 +25,7 @@ export function LeadIntelligence({leads,intelLead,setIntelLead,intelUrl,setIntel
   setResolverMessage('')
   setWebsiteCandidates([])
   try{
-   const {data,error}=await supabase.functions.invoke('resolve-website',{body:{business_name:intelLead.company||'',contact_name:intelLead.contact_name||'',location:intelLead.location||'',email:(intelLead as any).email||''}})
+   const {data,error}=await supabase.functions.invoke('resolve-website',{body:{business_name:intelLead.company||'',contact_name:intelLead.contact_name||'',location:intelLead.location||'',email:intelLead.email||''}})
    if(error) throw error
    const candidates=Array.isArray(data?.candidates)?data.candidates as WebsiteCandidate[]:[]
    setWebsiteCandidates(candidates)

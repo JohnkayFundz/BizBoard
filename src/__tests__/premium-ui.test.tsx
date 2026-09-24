@@ -4,6 +4,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Metric } from '../components/Ui'
 import { LeadPipeline } from '../components/LeadPipeline'
+import { assessIntelligence } from '../utils/intelligence'
 
 describe('premium UI primitives', () => {
   it('renders a KPI metric with its supporting metadata', () => {
@@ -11,6 +12,16 @@ describe('premium UI primitives', () => {
     expect(screen.getByText('Active pipeline')).toBeInTheDocument()
     expect(screen.getByText('₦250,000')).toBeInTheDocument()
     expect(screen.getByText('Open opportunities')).toBeInTheDocument()
+  })
+
+  it('keeps new-website opportunity scoring separate from service pricing logic', () => {
+    const emptyChecks = { mobile: false, cta: false, contact: false, ecommerce: false, seo: false }
+    const assessment = assessIntelligence(emptyChecks, false)
+
+    expect(assessment.mode).toBe('new-website')
+    expect(assessment.score).toBe(0)
+    expect(assessment.recommendedService).toBe('Business Website')
+    expect(assessment.estimatedValue).toBe(150000)
   })
 
   it('supports keyboard-friendly pipeline filtering', async () => {

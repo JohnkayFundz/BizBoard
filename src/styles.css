@@ -18,7 +18,7 @@ body{background:var(--navy)}
 button,input,select,textarea{transition:border-color .16s,background .16s,box-shadow .16s,transform .16s}
 button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid rgba(245,158,11,.65);outline-offset:2px}
 .metric strong{color:#f8fafc}.metric:nth-child(3) strong,.metric:nth-child(4) strong{color:#fbbf24}
-.stage{cursor:pointer;border:1px solid rgba(255,255,255,.06);font-weight:800}
+.stage{cursor:pointer;border:1px solid rgba(255,255,255,.06);font-weight:800}.stageControl{position:relative;display:inline-flex;align-items:center}.stageControl .stage{appearance:none;padding-right:28px;min-width:112px}.stageControl>svg{position:absolute;right:8px;width:13px;height:13px;pointer-events:none;opacity:.65}.actions{flex-wrap:wrap}.actions button{transition:background .15s,border-color .15s,transform .15s}.actions button:hover:not(:disabled){background:#16263d;border-color:#3a506d;transform:translateY(-1px)}.actions button:disabled{opacity:.35;cursor:not-allowed}
 .sortHead{display:inline-flex;align-items:center;gap:5px;border:0;background:transparent;color:inherit;font:inherit;text-transform:inherit;letter-spacing:inherit;padding:0;cursor:pointer}
 .sortHead svg{width:13px;height:13px;opacity:.65}
 tbody tr{transition:background .15s,transform .15s}tbody tr:hover{background:rgba(30,41,59,.45)}

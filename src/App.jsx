@@ -52,6 +52,10 @@ export default function App(){
   if(error){notify('Report generated, but history save failed: '+error.message);return null}
   const mapped={id:data.id,leadId:data.lead_id,websiteUrl:data.website_url,score:data.score,checklist:data.checklist,keyFindings:data.key_findings,keyOpportunities:data.key_opportunities,recommendedService:data.recommended_service,estimatedValue:Number(data.estimated_value||0),reportType:data.report_type,createdAt:data.created_at}
   setIntelligenceHistory(x=>[mapped,...x.filter(r=>r.id!==mapped.id)])
+  const activityNote='Intelligence report created. Type: '+mapped.reportType+'. Score: '+mapped.score+'/5. Recommended service: '+mapped.recommendedService+'. Estimated value: '+money(mapped.estimatedValue)+'.'
+  const activity=await supabase.from('crm_lead_activity').insert({lead_id:intelLead.id,activity_type:'Note',note:activityNote}).select().single()
+  if(activity.error)notify('Report saved, but activity logging failed')
+  else if(activityLead?.id===intelLead.id)setActivities(x=>[activity.data,...x])
   return mapped
  }
  function applyIntelligenceReport(report){
@@ -178,7 +182,7 @@ function outreachTemplate(l,channel){
    const r=await supabase.functions.invoke('analyze-website',{body:{url:intelUrl.trim()}})
    if(r.error||!r.data?.success){notify(r.data?.error||r.error?.message||'Website analysis failed');return}
    const nextChecks=r.data.checks||{mobile:false,cta:false,contact:false,ecommerce:false,seo:false}
-   setIntelChecks(nextChecks);setIntelResult(r.data);setProposalAnalyses(x=>({...x,[intelLead.id]:r.data}));buildIntelligenceReport(r.data,nextChecks);await saveIntelligenceReport(r.data,nextChecks);const historyNote='Website opportunity report saved. Score: '+r.data.score+'/5. Recommended service: '+r.data.recommended_service+'. Estimated value: '+money(r.data.estimated_value)+'. '+cleanText((r.data.opportunities||[]).join(' '),1500);const h=await supabase.from('crm_lead_activity').insert({lead_id:intelLead.id,activity_type:'Note',note:historyNote}).select().single();if(h.error)notify('Analysis complete, but history save failed: '+h.error.message);notify('Website analyzed successfully · report saved to lead history')
+   setIntelChecks(nextChecks);setIntelResult(r.data);setProposalAnalyses(x=>({...x,[intelLead.id]:r.data}));buildIntelligenceReport(r.data,nextChecks);await saveIntelligenceReport(r.data,nextChecks);notify('Website analyzed successfully · report saved to lead history')
   }catch(error){notify(error instanceof Error?error.message:'Website analysis failed')}
   finally{setIntelAnalyzing(false)}
  }

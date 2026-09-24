@@ -155,7 +155,7 @@ async function fetchJinaSearch(businessName: string, location: string): Promise<
     const text = await r.text()
     const results: Array<{ url: string; title: string }> = []
     const seen = new Set<string>()
-    const pattern = /(?:URL Source:\s*|\]\()?(https?:\\/\\/[^\\s)<>]+)/gi
+    const pattern = /(https?:\/\/[^\s)<>]+)/gi
     for (const match of text.matchAll(pattern)) {
       try {
         const url = new URL(match[1])

@@ -71,16 +71,18 @@ function isExcludedHost(hostname: string) {
   ].some(domain => host === domain || host.endsWith('.' + domain))
 }
 
-function extractSearchLinks(html: string) {
+function extractSearchLinks(html: string, engine: 'ddg' | 'bing') {
   const results: Array<{ url: string; title: string }> = []
   const seen = new Set<string>()
-  const pattern = /<a[^>]+class=["'][^"']*result__a[^"']*["'][^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi
+  const pattern = engine === 'ddg'
+    ? /<a[^>]+class=["'][^"']*result__a[^"']*["'][^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi
+    : /<li[^>]+class=["'][^"']*b_algo[^"']*["'][\s\S]*?<h2[^>]*>\s*<a[^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>\s*<\/h2>/gi
 
   for (const match of html.matchAll(pattern)) {
     let href = decodeHtml(match[1])
     const title = decodeHtml(match[2].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim())
     try {
-      const parsed = new URL(href, 'https://duckduckgo.com')
+      const parsed = new URL(href, engine === 'ddg' ? 'https://duckduckgo.com' : 'https://www.bing.com')
       const redirected = parsed.searchParams.get('uddg')
       if (redirected) href = decodeURIComponent(redirected)
       const url = new URL(href)
@@ -100,28 +102,45 @@ function extractSearchLinks(html: string) {
   return results
 }
 
-async function discoverWebResults(businessName: string, location: string) {
-  const query = encodeURIComponent(searchQuery(businessName, location))
-  const endpoint = 'https://html.duckduckgo.com/html/?q=' + query
+async function fetchSearchResults(endpoint: string, engine: 'ddg' | 'bing') {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 8000)
-
   try {
     const r = await fetch(endpoint, {
       signal: controller.signal,
       headers: {
-        'User-Agent': 'Mozilla/5.0 JohnKayClientEngine/2.0 website discovery',
+        'User-Agent': 'Mozilla/5.0 JohnKayClientEngine/2.1 website discovery',
         'Accept': 'text/html,application/xhtml+xml',
       },
     })
     if (!r.ok) return []
-    const html = await r.text()
-    return extractSearchLinks(html)
+    return extractSearchLinks(await r.text(), engine)
   } catch {
     return []
   } finally {
     clearTimeout(timeout)
   }
+}
+
+async function discoverWebResults(businessName: string, location: string) {
+  const query = encodeURIComponent(searchQuery(businessName, location))
+  const endpoints: Array<{ url: string; engine: 'ddg' | 'bing' }> = [
+    { url: 'https://html.duckduckgo.com/html/?q=' + query, engine: 'ddg' },
+    { url: 'https://www.bing.com/search?q=' + query, engine: 'bing' },
+  ]
+  const groups = await Promise.all(endpoints.map(item => fetchSearchResults(item.url, item.engine)))
+  const seen = new Set<string>()
+  const merged: Array<{ url: string; title: string }> = []
+  for (const group of groups) {
+    for (const item of group) {
+      const key = item.url.toLowerCase()
+      if (seen.has(key)) continue
+      seen.add(key)
+      merged.push(item)
+      if (merged.length >= 12) return merged
+    }
+  }
+  return merged
 }
 
 async function check(url: string, businessName: string, location: string, discoveryTitle = ''): Promise<Candidate | null> {

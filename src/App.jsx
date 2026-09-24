@@ -254,7 +254,9 @@ function generateProposal(){buildProposal()}
  function edit(l){setForm({...l,deal_value:l.deal_value||''});setModal(true)}
  async function save(e){
  e.preventDefault();setSaving(true)
- const candidate={...form,company:cleanText(form.company,120),contact_name:cleanText(form.contact_name,100),role:cleanText(form.role,100),email:cleanText(form.email,160),phone:cleanText(form.phone,30),website:cleanText(form.website,240),instagram:cleanText(form.instagram,120),niche:cleanText(form.niche,100),location:cleanText(form.location,100),source:cleanText(form.source,60),notes:cleanText(form.notes,2000),deal_value:form.deal_value?Number(form.deal_value):0,updated_at:new Date().toISOString()}
+ let normalizedWebsite=''
+ try{normalizedWebsite=normalizeWebsiteUrl(cleanText(form.website,500))}catch(error){notify(error instanceof Error?error.message:'Invalid website URL');setSaving(false);return}
+ const candidate={...form,company:cleanText(form.company,120),contact_name:cleanText(form.contact_name,100),role:cleanText(form.role,100),email:cleanText(form.email,160).toLowerCase(),phone:cleanText(form.phone,30),website:normalizedWebsite,instagram:cleanText(form.instagram,120),niche:cleanText(form.niche,100),location:cleanText(form.location,100),source:cleanText(form.source,60),notes:cleanText(form.notes,2000),deal_value:form.deal_value?Number(form.deal_value):0,updated_at:new Date().toISOString()}
  const parsed=leadSchema.safeParse(candidate)
  if(!parsed.success){notify(parsed.error.issues[0]?.message||'Please check the lead details');setSaving(false);return}
  const p={...parsed.data};delete p.id;delete p.owner_id;delete p.created_at

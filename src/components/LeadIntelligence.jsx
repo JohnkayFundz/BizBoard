@@ -1,15 +1,10 @@
 import { Target, Globe2, PlusCircle } from 'lucide-react'
-import { assessIntelligence, EMPTY_INTELLIGENCE_CHECKS, normalizeWebsiteUrl } from '../utils/intelligence'
+import { assessIntelligence, EMPTY_INTELLIGENCE_CHECKS } from '../utils/intelligence'
 
 export function LeadIntelligence({leads,intelLead,setIntelLead,intelUrl,setIntelUrl,setIntelReport,setIntelResult,setIntelChecks,intelChecks,saveLeadWebsite,analyzeWebsite,intelAnalyzing,generateIntelligence,intelResult,intelReport,copyIntelligence,intelCopied}){
  const hasWebsite=Boolean(intelLead?.website||intelUrl.trim())
  const assessment=assessIntelligence(intelChecks,hasWebsite)
- const setWebsite=(value)=>{
-  setIntelUrl(value)
-  if(value.trim()){
-   try{setIntelUrl(normalizeWebsiteUrl(value))}catch{ /* validation remains in the analyzer */ }
-  }
- }
+ const setWebsite=(value)=>setIntelUrl(value)
  const selectLead=(value)=>{
   const l=leads.find(x=>String(x.id)===value)
   setIntelLead(l||null)

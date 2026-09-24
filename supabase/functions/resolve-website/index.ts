@@ -103,7 +103,7 @@ function extractSearchLinks(html: string, engine: 'ddg' | 'bing') {
 }
 
 type DiscoveryDiagnostic = {
-  engine: 'ddg' | 'bing'
+  engine: 'ddg' | 'bing' | 'jina'
   status: 'ok' | 'blocked' | 'error'
   http_status: number | null
   results: number
@@ -139,13 +139,67 @@ async function fetchSearchResults(endpoint: string, engine: 'ddg' | 'bing'): Pro
   }
 }
 
+
+async function fetchJinaSearch(businessName: string, location: string): Promise<{ results: Array<{ url: string; title: string }>; diagnostic: DiscoveryDiagnostic }> {
+  const query = encodeURIComponent(searchQuery(businessName, location))
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 10000)
+  try {
+    const r = await fetch('https://s.jina.ai/' + query, {
+      signal: controller.signal,
+      headers: {
+        'Accept': 'text/plain',
+        'User-Agent': 'JohnKayClientEngine/2.1 website discovery',
+      },
+    })
+    const text = await r.text()
+    const results: Array<{ url: string; title: string }> = []
+    const seen = new Set<string>()
+    const pattern = /(?:URL Source:\s*|\]\()?(https?:\\/\\/[^\\s)<>]+)/gi
+    for (const match of text.matchAll(pattern)) {
+      try {
+        const url = new URL(match[1])
+        if (!['http:', 'https:'].includes(url.protocol) || isExcludedHost(url.hostname)) continue
+        const normalized = url.origin + url.pathname.replace(/\\/$/, '')
+        if (seen.has(normalized)) continue
+        seen.add(normalized)
+        const start = Math.max(0, (match.index ?? 0) - 180)
+        const context = text.slice(start, match.index ?? 0).replace(/\\s+/g, ' ').trim()
+        results.push({ url: normalized, title: context.slice(-140) })
+        if (results.length >= 10) break
+      } catch {
+        // Ignore malformed URLs.
+      }
+    }
+    return {
+      results,
+      diagnostic: {
+        engine: 'jina',
+        status: r.ok ? (results.length ? 'ok' : 'blocked') : 'blocked',
+        http_status: r.status,
+        results: results.length,
+      },
+    }
+  } catch {
+    return {
+      results: [],
+      diagnostic: { engine: 'jina', status: 'error', http_status: null, results: 0 },
+    }
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
 async function discoverWebResults(businessName: string, location: string) {
   const query = encodeURIComponent(searchQuery(businessName, location))
   const endpoints: Array<{ url: string; engine: 'ddg' | 'bing' }> = [
     { url: 'https://html.duckduckgo.com/html/?q=' + query, engine: 'ddg' },
     { url: 'https://www.bing.com/search?q=' + query, engine: 'bing' },
   ]
-  const groups = await Promise.all(endpoints.map(item => fetchSearchResults(item.url, item.engine)))
+  const groups = await Promise.all([
+    ...endpoints.map(item => fetchSearchResults(item.url, item.engine)),
+    fetchJinaSearch(businessName, location),
+  ])
   const seen = new Set<string>()
   const merged: Array<{ url: string; title: string }> = []
   for (const group of groups) {

@@ -8,6 +8,21 @@ type Candidate = {
   confidence: 'verified' | 'likely' | 'unverified'
   score: number
   reason: string
+  source_type: 'official_website' | 'social_profile' | 'directory' | 'marketplace' | 'portfolio' | 'news_media' | 'unknown'
+}
+
+function classifyHost(hostname: string, title = ''): Candidate['source_type'] {
+  const host = hostname.toLowerCase().replace(/^www\\./, '')
+  const social = ['facebook.com','instagram.com','linkedin.com','twitter.com','x.com','youtube.com','tiktok.com','wa.me','whatsapp.com']
+  const directories = ['foursquare.com','tripadvisor.com','yelp.com','yellowpages.com','hotfrog.com','finelib.com','businesslist.com.ng','connectnigeria.com','vconnect.com','ngex.com','directory']
+  const marketplaces = ['jiji.ng','jumia.com.ng','konga.com','propertypro.ng','privateproperty.com.ng','cars45.com','autochek.africa']
+  const media = ['bbc.com','cnn.com','reuters.com','guardian.ng','punchng.com','vanguardngr.com','thisdaylive.com','tribuneonlineng.com','premiumtimesng.com','businessday.ng','nairaland.com']
+  if (social.some(d => host === d || host.endsWith('.' + d))) return 'social_profile'
+  if (marketplaces.some(d => host === d || host.endsWith('.' + d))) return 'marketplace'
+  if (directories.some(d => host === d || host.endsWith('.' + d) || host.includes(d))) return 'directory'
+  if (media.some(d => host === d || host.endsWith('.' + d)) || /\\b(news|radio|newspaper|breaking news|live radio)\\b/i.test(title)) return 'news_media'
+  if (/behance\\.net|dribbble\\.com|clutch\\.co|designrush\\.com|portfolio/i.test(host + ' ' + title)) return 'portfolio'
+  return 'unknown'
 }
 
 const response = (body: unknown, status = 200) =>
@@ -49,7 +64,19 @@ function decodeHtml(value: string) {
 
 function searchQuery(businessName: string, location: string) {
   const cleanLocation = location.split(',')[0].trim()
-  return [businessName, cleanLocation, 'Nigeria'].filter(Boolean).join(' ')
+  return ['"' + businessName.replace(/"/g, '') + '"', cleanLocation, 'Nigeria', 'website'].filter(Boolean).join(' ')
+}
+
+function isLowValueHost(hostname: string, title = '') {
+  const host = hostname.toLowerCase().replace(/^www\./, '')
+  const generic = [
+    'rte.ie','shannonside.ie','breakingnews.ie','irishradiolive.com','leitrimobserver.ie',
+    'bbc.com','cnn.com','reuters.com','guardian.ng','punchng.com','vanguardngr.com',
+    'thisdaylive.com','tribuneonlineng.com','premiumtimesng.com','businessday.ng','nairaland.com'
+  ]
+  if (generic.some(d => host === d || host.endsWith('.' + d))) return true
+  return /(^|[.\-])(news|radio|newspaper|media|press)([.\-]|$)/i.test(host)
+    || /\b(news|radio|newspaper|breaking news|live radio)\b/i.test(title)
 }
 
 function isExcludedHost(hostname: string) {
@@ -74,21 +101,31 @@ function isExcludedHost(hostname: string) {
 function extractSearchLinks(html: string, engine: 'ddg' | 'bing') {
   const results: Array<{ url: string; title: string }> = []
   const seen = new Set<string>()
-  const pattern = engine === 'ddg'
-    ? /<a[^>]+class=["'][^"']*result__a[^"']*["'][^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi
-    : /<li[^>]+class=["'][^"']*b_algo[^"']*["'][\s\S]*?<h2[^>]*>\s*<a[^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>\s*<\/h2>/gi
+  const pattern = /<a[^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi
 
   for (const match of html.matchAll(pattern)) {
     let href = decodeHtml(match[1])
     const title = decodeHtml(match[2].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim())
+    if (!title || title.length < 2) continue
     try {
       const parsed = new URL(href, engine === 'ddg' ? 'https://duckduckgo.com' : 'https://www.bing.com')
       const redirected = parsed.searchParams.get('uddg')
       if (redirected) href = decodeURIComponent(redirected)
+      const bingEncoded = parsed.searchParams.get('u')
+      if (engine === 'bing' && bingEncoded && bingEncoded.startsWith('a1')) {
+        try {
+          const raw = bingEncoded.slice(2).replace(/-/g, '+').replace(/_/g, '/')
+          const padded = raw + '='.repeat((4 - raw.length % 4) % 4)
+          const decoded = atob(padded)
+          if (decoded.startsWith('http')) href = decoded
+        } catch {
+          // Keep the original Bing URL when redirect decoding fails.
+        }
+      }
       const url = new URL(href)
       if (!['http:', 'https:'].includes(url.protocol)) continue
       if (isExcludedHost(url.hostname)) continue
-        const normalized = url.origin + url.pathname.replace(/\/$/, '')
+      const normalized = url.origin + url.pathname.replace(/\/$/, '')
       if (!seen.has(normalized)) {
         seen.add(normalized)
         results.push({ url: normalized, title })
@@ -98,7 +135,6 @@ function extractSearchLinks(html: string, engine: 'ddg' | 'bing') {
     }
     if (results.length >= 12) break
   }
-
   return results
 }
 
@@ -128,8 +164,10 @@ async function fetchSearchResults(endpoint: string, engine: 'ddg' | 'bing'): Pro
       http_status: r.status,
       results: results.length,
     }
+    console.log(JSON.stringify({ event: 'search_provider', provider: engine, http_status: r.status, results: results.length, bytes: html.length }))
     return { results, diagnostic }
-  } catch {
+  } catch (error) {
+    console.error(JSON.stringify({ event: 'search_provider_error', provider: engine, error: error instanceof Error ? error.message : String(error) }))
     return {
       results: [],
       diagnostic: { engine, status: 'error', http_status: null, results: 0 },
@@ -155,10 +193,13 @@ async function fetchJinaSearch(businessName: string, location: string): Promise<
     const text = await r.text()
     const results: Array<{ url: string; title: string }> = []
     const seen = new Set<string>()
-    const pattern = /(https?:\/\/[^\s)<>]+)/gi
+    const pattern = /\[[^\]]*\]\((https?:\/\/[^)\s]+)\)|(?:^|\s)(https?:\/\/[^\s)<>]+)/gim
+
     for (const match of text.matchAll(pattern)) {
+      const rawUrl = match[1] || match[2]
+      if (!rawUrl) continue
       try {
-        const url = new URL(match[1])
+        const url = new URL(rawUrl)
         if (!['http:', 'https:'].includes(url.protocol) || isExcludedHost(url.hostname)) continue
         const normalized = url.origin + url.pathname.replace(/\/$/, '')
         if (seen.has(normalized)) continue
@@ -171,6 +212,8 @@ async function fetchJinaSearch(businessName: string, location: string): Promise<
         // Ignore malformed URLs.
       }
     }
+
+    console.log(JSON.stringify({ event: 'search_provider', provider: 'jina', http_status: r.status, results: results.length, bytes: text.length }))
     return {
       results,
       diagnostic: {
@@ -180,7 +223,8 @@ async function fetchJinaSearch(businessName: string, location: string): Promise<
         results: results.length,
       },
     }
-  } catch {
+  } catch (error) {
+    console.error(JSON.stringify({ event: 'search_provider_error', provider: 'jina', error: error instanceof Error ? error.message : String(error) }))
     return {
       results: [],
       diagnostic: { engine: 'jina', status: 'error', http_status: null, results: 0 },
@@ -193,8 +237,8 @@ async function fetchJinaSearch(businessName: string, location: string): Promise<
 async function discoverWebResults(businessName: string, location: string) {
   const query = encodeURIComponent(searchQuery(businessName, location))
   const endpoints: Array<{ url: string; engine: 'ddg' | 'bing' }> = [
+    { url: 'https://www.bing.com/search?q=' + query + '&count=10', engine: 'bing' },
     { url: 'https://html.duckduckgo.com/html/?q=' + query, engine: 'ddg' },
-    { url: 'https://www.bing.com/search?q=' + query, engine: 'bing' },
   ]
   const groups = await Promise.all([
     ...endpoints.map(item => fetchSearchResults(item.url, item.engine)),
@@ -228,7 +272,7 @@ async function check(url: string, businessName: string, location: string, discov
     const text = await r.text()
     const title = extractTitle(text.slice(0, 120000)) || discoveryTitle
     const tokens = meaningfulTokens(businessName)
-    const haystack = (title + ' ' + url).toLowerCase()
+    const haystack = (title + ' ' + url + ' ' + text.slice(0, 60000)).toLowerCase()
     const matches = tokens.filter(token => haystack.includes(token)).length
     const base = compact(businessName)
     const host = new URL(r.url).hostname.replace(/^www\./, '')
@@ -241,6 +285,8 @@ async function check(url: string, businessName: string, location: string, discov
     else if (matches === 1) score += 10
     if (locationHint && haystack.includes(locationHint)) score += 5
     if (discoveryTitle && meaningfulTokens(discoveryTitle).some(token => tokens.includes(token))) score += 5
+    if (isLowValueHost(new URL(r.url).hostname, title)) score -= 60
+    if (/\.ng$|\.com\.ng$/i.test(host)) score += 10
     score = Math.min(100, score)
 
     const confidence: Candidate['confidence'] =
@@ -263,7 +309,17 @@ async function check(url: string, businessName: string, location: string, discov
           : 'Live site with a strong business-name match.'
         : confidence === 'likely'
           ? 'Found through web discovery; business-name match should be reviewed before saving.'
-          : 'A live domain responded, but the business match is weak.',
+          : sourceType === 'social_profile'
+          ? 'This is a social profile, not an official business website.'
+          : sourceType === 'directory'
+            ? 'This is a directory/listing result, not an official business website.'
+            : sourceType === 'marketplace'
+              ? 'This is a marketplace/listing result, not an official business website.'
+              : sourceType === 'portfolio'
+                ? 'This appears to be a portfolio/design page rather than the business website.'
+                : sourceType === 'news_media'
+                  ? 'This is a news/media result, not an official business website.'
+                  : 'A live domain responded, but the business match is weak.',
     }
   } catch {
     return null
@@ -318,20 +374,39 @@ Deno.serve(async (req: Request) => {
       if (!existing || candidate.score > existing.score) unique.set(key, candidate)
     }
 
-    const finalCandidates = [...unique.values()]
+    const allCandidates = [...unique.values()]
+    const finalCandidates = allCandidates
+      .filter(candidate => candidate.source_type === 'unknown' && candidate.score >= 70 && candidate.confidence !== 'unverified')
       .sort((a, b) => b.score - a.score)
       .slice(0, 6)
+    const otherOnlinePresence = allCandidates
+      .filter(candidate => candidate.source_type !== 'unknown')
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 8)
+
+    console.log(JSON.stringify({
+      event: 'discovery_summary',
+      discovered: discovered.length,
+      direct_domains: domains.size,
+      checked: candidates.length,
+      final_candidates: finalCandidates.length,
+      other_online_presence: otherOnlinePresence.length,
+      diagnostics: discovery.diagnostics,
+    }))
 
     return response({
       success: true,
       business_name: businessName,
       candidates: finalCandidates,
+      other_online_presence: otherOnlinePresence,
       searched: domains.size,
       discovered: discovered.length,
       discovery: discovery.diagnostics,
       message: finalCandidates.length
-        ? 'Candidate websites found through web discovery. Review the match before saving.'
-        : 'No live candidate website was found. You can search manually using the business name and location.',
+        ? 'Official website candidates found through web discovery. Review the match before saving.'
+        : otherOnlinePresence.length
+          ? 'No official website was verified. Other online presence was found and classified separately.'
+          : 'No live candidate website was found. You can search manually using the business name and location.',
     })
   } catch (error) {
     return response({ success: false, error: error instanceof Error ? error.message : String(error) }, 500)

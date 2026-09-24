@@ -151,14 +151,68 @@ function outreachTemplate(l,channel){
   const score=result?.score ?? assessment.score
   const service=result?.recommended_service || assessment.recommendedService
   const value=result?.estimated_value ? money(result.estimated_value) : money(assessment.estimatedValue)
-  const gaps=rows.filter(x=>!x[1]).map(x=>x[0])
   const hasWebsite=Boolean(intelLead.website||intelUrl.trim())
+  const gaps=rows.filter(x=>!x[1]).map(x=>x[0])
+  const company=(intelLead.company||'Prospect').replace(/\\s*[—-]\\s*Website\\s*$/i,'')
+  const industry=intelLead.niche||'Business'
+  const location=intelLead.location||'Not provided'
+  const contact=intelLead.contact_name||'Not provided'
+  const website=intelUrl||intelLead.website||'Not provided'
   const reportTitle=hasWebsite?'WEBSITE OPPORTUNITY REPORT':'NEW WEBSITE OPPORTUNITY REPORT'
-  const opportunities=result?.opportunities?.length?result.opportunities.map(x=>'• '+x):hasWebsite?(gaps.length?gaps.map(x=>'• Improve '+x.toLowerCase()):['• Strengthen the existing website experience and conversion path']):['• Establish a professional online presence','• Make products/services easier to discover online','• Create a clear customer enquiry or ordering path']
-  const report=[reportTitle,'','Business: '+(intelLead.company||'Prospect'),'Contact: '+(intelLead.contact_name||'Not provided'),'Industry: '+(intelLead.niche||'Business'),'Location: '+(intelLead.location||'Not provided'),'Website: '+(intelUrl||intelLead.website||'Not provided'),result?.title?'Page title: '+result.title:'',result?.response_ms?'Server response time: '+result.response_ms+' ms':'','', 'OPPORTUNITY SCORE: '+score+'/5','','CHECKLIST',...rows.map(x=>(x[1]?'✓':'○')+' '+x[0]),'','KEY FINDINGS',...(result?.findings||[]).map(x=>'• '+x),(hasWebsite?'':'• No existing website was provided; this assessment is for a new website opportunity.'),'','KEY OPPORTUNITIES',...opportunities,'','RECOMMENDED SERVICE: '+service,'ESTIMATED PROJECT VALUE: '+value,'','Prepared by JohnKay Fundz'].filter(Boolean).join('\\n')
+  const capabilities=hasWebsite
+    ? (result?.opportunities?.length?result.opportunities.map(x=>'• '+x):(gaps.length?gaps.map(x=>'• Improve '+x.toLowerCase()):['• Strengthen the existing website experience and conversion path']))
+    : ['• Mobile-first fashion/product presentation','• Clear product or service categories','• WhatsApp/contact enquiry flow','• Product gallery or catalogue','• Basic SEO and local discovery setup']
+  const findings=result?.findings?.length?result.findings.map(x=>'• '+x):hasWebsite?['• Existing website available for review.']:['• No verified website is currently saved for this prospect.','• Treat this as a new website opportunity rather than an existing-site audit.']
+  const discovery=industry.toLowerCase().includes('fashion')||company.toLowerCase().includes('closet')
+    ? ['• Do customers currently order through WhatsApp or Instagram?','• Do you have product photos, prices and categories ready?','• Do you want customers to browse products before contacting you?']
+    : ['• What products or services should the website highlight first?','• Do you already have business photos, branding and contact details?','• Should customers enquire through WhatsApp, phone, email or a form?']
+  const pitch=hasWebsite
+    ? 'Use the findings above to start a conversation around improving the current online experience and customer journey.'
+    : `A professional website could give ${company} a central online presence where customers can discover the business, view its offerings and make enquiries easily.`
+  const report=[reportTitle,'',
+    'PROSPECT OVERVIEW',
+    'Business: '+company,
+    'Contact: '+contact,
+    'Industry: '+industry,
+    'Location: '+location,
+    'Website: '+website,
+    '',
+    'OPPORTUNITY SUMMARY',
+    'Opportunity type: '+(hasWebsite?'Website improvement / audit':'New website'),
+    'Opportunity score: '+score+'/5',
+    'Estimated project value: '+value,
+    '',
+    'CURRENT DIGITAL POSITION',
+    ...findings,
+    '',
+    'RECOMMENDED WEBSITE CAPABILITIES',
+    ...capabilities,
+    '',
+    'SALES ANGLE',
+    '• '+pitch,
+    '',
+    'DISCOVERY QUESTIONS',
+    ...discovery,
+    '',
+    'RECOMMENDED SERVICE',
+    service,
+    'ESTIMATED PROJECT VALUE',
+    value,
+    '',
+    'NEXT ACTION',
+    '• Confirm the prospect needs and priorities.',
+    '• Show a relevant demo or example.',
+    '• Generate a tailored proposal after discovery.',
+    '',
+    'PROPOSAL HANDOFF',
+    'Service: '+service,
+    'Investment: '+value,
+    'Timeline: '+(service==='E-commerce Website'?'10–14 business days':service==='Custom Web Application'?'14–21 business days':'7–10 business days'),
+    '',
+    'Prepared by JohnKay Fundz'
+  ].filter(Boolean).join('\\n')
   setIntelReport(report)
- }
- async function generateIntelligence(){buildIntelligenceReport(null);await saveIntelligenceReport(null,intelChecks)}
+ }\n async function generateIntelligence(){buildIntelligenceReport(null);await saveIntelligenceReport(null,intelChecks)}
  async function saveLeadWebsite(){
   if(!intelLead||!intelUrl.trim())return
   let website=''

@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event'
 import { Metric } from '../components/Ui'
 import { LeadPipeline } from '../components/LeadPipeline'
 import { assessIntelligence } from '../utils/intelligence'
+import { calculatePipelineMetrics, findPotentialDuplicateLeads } from '../utils/pipeline'
 
 describe('premium UI primitives', () => {
   it('renders a KPI metric with its supporting metadata', () => {
@@ -22,6 +23,30 @@ describe('premium UI primitives', () => {
     expect(assessment.score).toBe(0)
     expect(assessment.recommendedService).toBe('Business Website')
     expect(assessment.estimatedValue).toBe(150000)
+  })
+
+  it('calculates open value and closed revenue from live lead values', () => {
+    const metrics = calculatePipelineMetrics([
+      { status: 'New Lead', deal_value: 30000, next_follow_up: '' },
+      { status: 'Interested', deal_value: 120000, next_follow_up: '' },
+      { status: 'Won', deal_value: 150000, next_follow_up: '' },
+      { status: 'Lost', deal_value: 50000, next_follow_up: '' },
+    ], '2026-09-24')
+
+    expect(metrics.active).toBe(2)
+    expect(metrics.pipeline).toBe(150000)
+    expect(metrics.won).toBe(150000)
+  })
+
+  it('flags likely duplicate leads by normalized contact identity', () => {
+    const duplicates = findPotentialDuplicateLeads([
+      { id: 1, company: 'Acme Ltd', email: 'OWNER@ACME.COM', phone: '08012345678' },
+      { id: 2, company: 'Acme Ltd', email: 'owner@acme.com', phone: '08012345678' },
+      { id: 3, company: 'Different Co', email: 'other@example.com', phone: '' },
+    ])
+
+    expect(duplicates).toHaveLength(1)
+    expect(duplicates[0].ids).toEqual([1, 2])
   })
 
   it('supports keyboard-friendly pipeline filtering', async () => {

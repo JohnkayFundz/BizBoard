@@ -4,6 +4,7 @@ import { BarChart3, Bell, BriefcaseBusiness, Check, ChevronDown, Copy, ExternalL
 import { leadSchema, intelligenceSchema, proposalSchema, cleanText } from './lib/validation'
 import { env, envError } from './lib/env'
 import { assessIntelligence, normalizeWebsiteUrl } from './utils/intelligence'
+import { calculatePipelineMetrics, findPotentialDuplicateLeads } from './utils/pipeline'
 import { downloadProposalPdf } from './utils/pdfGenerator'
 import { Metric, Select, FollowupCard } from './components/Ui'
 import { LeadIntelligence } from './components/LeadIntelligence'
@@ -35,7 +36,7 @@ export default function App(){
  useEffect(()=>{if(!supabase){setLoading(false);return} supabase.auth.getSession().then(({data})=>{setSession(data.session);setLoading(false)});const {data:{subscription}}=supabase.auth.onAuthStateChange((_e,s)=>setSession(s));return()=>subscription.unsubscribe()},[])
  useEffect(()=>{if(!session)return;load();const channel=supabase.channel('crm-live').on('postgres_changes',{event:'*',schema:'public',table:'crm_leads'},()=>load()).subscribe();return()=>{supabase.removeChannel(channel)}},[session])
  useEffect(()=>{if(!session||!intelLead?.id)return;loadIntelligenceHistory(intelLead.id)},[session,intelLead?.id])
- async function load(){const {data,error}=await supabase.from('crm_leads').select('*').order('updated_at',{ascending:false});if(error)notify(error.message);else setLeads(data||[])}
+ async function load(){const {data,error}=await supabase.from('crm_leads').select('*').order('updated_at',{ascending:false});if(error){notify(error.message);return []}setLeads(data||[]);return data||[]}
  async function loadIntelligenceHistory(leadId){
   const {data,error}=await supabase.from('crm_intelligence_reports').select('*').eq('lead_id',leadId).order('created_at',{ascending:false}).limit(20)
   if(error){notify(error.message);return}
@@ -145,7 +146,7 @@ function outreachTemplate(l,channel){
  function notify(x){setToast(x);setTimeout(()=>setToast(''),3000)}
  async function auth(e){e.preventDefault();setAuthMsg('');const r=mode==='login'?await supabase.auth.signInWithPassword({email,password}):await supabase.auth.signUp({email,password});if(r.error)setAuthMsg(r.error.message);else if(mode==='signup')setAuthMsg('Account created. Check your email if confirmation is enabled.')}
  async function signout(){await supabase.auth.signOut();setLeads([])}
- async function syncHubSpot(){setSyncing(true);try{let {data:{session:currentSession}}=await supabase.auth.getSession();if(!currentSession?.access_token){const refreshed=await supabase.auth.refreshSession();currentSession=refreshed.data.session}if(!currentSession?.access_token){notify('Your login session is missing. Please sign in again.');return}const r=await supabase.functions.invoke('sync-hubspot',{body:{},headers:{Authorization:`Bearer ${currentSession.access_token}`}});if(r.error)notify(r.error.message||'HubSpot sync failed');else if(!r.data?.success)notify(r.data?.error||'HubSpot sync failed');else{await load();notify(`${r.data.synced} HubSpot deals synchronized`)}}catch(error){notify(error instanceof Error?error.message:'HubSpot sync failed')}finally{setSyncing(false)}}
+ async function syncHubSpot(){setSyncing(true);try{let {data:{session:currentSession}}=await supabase.auth.getSession();if(!currentSession?.access_token){const refreshed=await supabase.auth.refreshSession();currentSession=refreshed.data.session}if(!currentSession?.access_token){notify('Your login session is missing. Please sign in again.');return}const r=await supabase.functions.invoke('sync-hubspot',{body:{},headers:{Authorization:`Bearer ${currentSession.access_token}`}});if(r.error)notify(r.error.message||'HubSpot sync failed');else if(!r.data?.success)notify(r.data?.error||'HubSpot sync failed');else{const loaded=await load();const duplicateCount=findPotentialDuplicateLeads(loaded||[]).length;notify(`${r.data.synced} HubSpot deals synchronized${duplicateCount?` · ${duplicateCount} potential duplicate${duplicateCount===1?'':'s'} flagged`:''}`)}}catch(error){notify(error instanceof Error?error.message:'HubSpot sync failed')}finally{setSyncing(false)}}
  function buildIntelligenceReport(result, checks=intelChecks){
   if(!intelLead)return
   const rows=[['Mobile experience',checks.mobile],['Clear call-to-action',checks.cta],['Contact options',checks.contact],['E-commerce opportunity',checks.ecommerce],['Basic SEO readiness',checks.seo]]
@@ -304,7 +305,7 @@ function generateProposal(){buildProposal()}
  const pageCount=Math.max(1,Math.ceil(sorted.length/pageSize));const safePage=Math.min(page,pageCount);const paged=sorted.slice((safePage-1)*pageSize,safePage*pageSize)
  function sortBy(key){setPage(1);if(sortKey===key)setSortDir(x=>x==='asc'?'desc':'asc');else{setSortKey(key);setSortDir('asc')}}
  useEffect(()=>{setPage(1)},[query,status,source])
- const metrics=useMemo(()=>({total:leads.length,active:leads.filter(l=>!['Won','Lost'].includes(l.status)).length,pipeline:leads.filter(l=>!['Won','Lost'].includes(l.status)).reduce((s,l)=>s+Number(l.deal_value||0),0),won:leads.filter(l=>l.status==='Won').reduce((s,l)=>s+Number(l.deal_value||0),0),due:leads.filter(l=>l.next_follow_up&&l.next_follow_up<=today()&&!['Won','Lost'].includes(l.status)).length}),[leads])
+ const metrics=useMemo(()=>calculatePipelineMetrics(leads,today()),[leads])
  const sources=[...new Set(leads.map(l=>l.source).filter(Boolean))]
  const followUps=useMemo(()=>{const active=leads.filter(l=>l.next_follow_up&&!['Won','Lost'].includes(l.status));const t=today();return {overdue:active.filter(l=>l.next_follow_up<t),today:active.filter(l=>l.next_follow_up===t),upcoming:active.filter(l=>l.next_follow_up>t).sort((a,b)=>a.next_follow_up.localeCompare(b.next_follow_up)).slice(0,5)}},[leads])
  function edit(l){setForm({...l,deal_value:l.deal_value||''});setModal(true)}

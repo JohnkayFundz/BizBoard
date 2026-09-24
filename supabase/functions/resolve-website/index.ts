@@ -88,7 +88,7 @@ function extractSearchLinks(html: string, engine: 'ddg' | 'bing') {
       const url = new URL(href)
       if (!['http:', 'https:'].includes(url.protocol)) continue
       if (isExcludedHost(url.hostname)) continue
-      const normalized = url.origin + url.pathname.replace(/\/$/, '')
+        const normalized = url.origin + url.pathname.replace(/\/$/, '')
       if (!seen.has(normalized)) {
         seen.add(normalized)
         results.push({ url: normalized, title })
@@ -160,11 +160,11 @@ async function fetchJinaSearch(businessName: string, location: string): Promise<
       try {
         const url = new URL(match[1])
         if (!['http:', 'https:'].includes(url.protocol) || isExcludedHost(url.hostname)) continue
-        const normalized = url.origin + url.pathname.replace(/\\/$/, '')
+        const normalized = url.origin + url.pathname.replace(/\/$/, '')
         if (seen.has(normalized)) continue
         seen.add(normalized)
         const start = Math.max(0, (match.index ?? 0) - 180)
-        const context = text.slice(start, match.index ?? 0).replace(/\\s+/g, ' ').trim()
+        const context = text.slice(start, match.index ?? 0).replace(/\s+/g, ' ').trim()
         results.push({ url: normalized, title: context.slice(-140) })
         if (results.length >= 10) break
       } catch {

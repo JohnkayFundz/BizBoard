@@ -36,8 +36,8 @@ export function assessIntelligence(checks: IntelligenceChecks, hasWebsite: boole
 export function normalizeWebsiteUrl(value: string): string {
   const raw = value.trim()
   if (!raw) return ''
-  const candidate = /^https?:\\/\\//i.test(raw) ? raw : `https://${raw}`
+  const candidate = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`
   const parsed = new URL(candidate)
   if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('Use an HTTP or HTTPS website URL')
-  return parsed.toString().replace(/\\/$/, '')
+  return parsed.toString().replace(/\/$/, '')
 }

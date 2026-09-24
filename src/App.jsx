@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import { BarChart3, Bell, BriefcaseBusiness, Check, ChevronDown, Copy, ExternalLink, Filter, LogOut, Plus, RefreshCw, Search, Target, Trash2, Users, X, ArrowUpDown, ChevronLeft, ChevronRight, FileDown } from 'lucide-react'
 import { leadSchema, intelligenceSchema, proposalSchema, cleanText } from './lib/validation'
+import { env, envError } from './lib/env'
 import { assessIntelligence, normalizeWebsiteUrl } from './utils/intelligence'
 import { downloadProposalPdf } from './utils/pdfGenerator'
 import { Metric, Select, FollowupCard } from './components/Ui'
@@ -13,9 +14,7 @@ import { ProposalGenerator } from './components/ProposalGenerator'
 import { OutreachEngine } from './components/OutreachEngine'
 
 
-const supabase = import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
-  ? createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY)
-  : null
+const supabase = env ? createClient(env.VITE_SUPABASE_URL, env.VITE_SUPABASE_PUBLISHABLE_KEY) : null
 
 const stages=['New Lead','Contacted','Replied','Interested','Proposal Sent','Won','Lost']
 const tone={ 'New Lead':'blue',Contacted:'indigo',Replied:'violet',Interested:'amber','Proposal Sent':'orange',Won:'green',Lost:'red' }
@@ -267,7 +266,7 @@ function generateProposal(){buildProposal()}
  async function remove(id){if(!confirm('Delete this lead?'))return;const r=await supabase.from('crm_leads').delete().eq('id',id);if(r.error)notify(r.error.message);else{setLeads(x=>x.filter(a=>a.id!==id));notify('Lead deleted')}}
  async function move(l,s){if(s===l.status)return;const r=await supabase.from('crm_leads').update({status:s,updated_at:new Date().toISOString()}).eq('id',l.id).select().single();if(r.error)notify(r.error.message);else{setLeads(x=>x.map(a=>a.id===l.id?r.data:a));const h=await supabase.from('crm_lead_activity').insert({lead_id:l.id,activity_type:'Stage change',note:'Stage changed from '+l.status+' to '+s+'.'}).select().single();if(h.error)notify('Stage updated, but history logging failed');else if(activityLead?.id===l.id)setActivities(x=>[h.data,...x]);notify('Stage moved to '+s)}}
  if(loading)return <div className="center"><div className="loader"/>Loading Client Engine…</div>
- if(!supabase)return <div className="center"><div className="auth"><b className="logo">JK</b><h1>Client Engine</h1><p>Add the Supabase environment variables to run the app.</p></div></div>
+ if(!supabase)return <div className="center"><div className="auth"><b className="logo">JK</b><h1>Client Engine</h1><p>Supabase environment configuration is invalid. ${envError||'Check your production environment variables.'}</p></div></div>
  if(!session)return <div className="center auth-bg"><form className="auth" onSubmit={auth}><b className="logo">JK</b><small>PRIVATE BUSINESS TOOL</small><h1>JohnKay Client Engine</h1><p>One private workspace for leads, follow-ups and deal tracking.</p><label>Email<input type="email" value={email} onChange={e=>setEmail(e.target.value)} required/></label><label>Password<input type="password" value={password} onChange={e=>setPassword(e.target.value)} required minLength="6"/></label>{authMsg&&<em>{authMsg}</em>}<button className="primary wide">{mode==='login'?'Sign in':'Create account'}</button><button type="button" className="link" onClick={()=>setMode(mode==='login'?'signup':'login')}>{mode==='login'?'Create a new account':'Back to sign in'}</button></form></div>
  return <div className="shell"><aside><div className="brand"><b className="logo">JK</b><span><strong>JohnKay</strong><small>Client Engine</small></span></div><nav><button className="active"><BarChart3/>Overview</button><button onClick={()=>document.getElementById('leads').scrollIntoView({behavior:'smooth'})}><Users/>Leads</button><button onClick={()=>{setForm({...empty});setModal(true)}}><Plus/>Add Lead</button><button onClick={()=>{const l=leads[0];if(l)openOutreach(l)}}><ExternalLink/>Outreach</button><button onClick={()=>document.getElementById("intelligence").scrollIntoView({behavior:"smooth"})}><Target/>Intelligence</button></nav><div className="asideBottom"><div className="tip"><Target/>Turn prospects into paying clients.</div><button onClick={signout}><LogOut/>Sign out</button></div></aside>
  <main><header><div><small>PRIVATE WORKSPACE</small><h1>Client acquisition, in one place.</h1><p>Track prospects, follow-ups and potential revenue without rebuilding your workflow every time.</p></div><div className="headerActions"><button className="secondary" onClick={syncHubSpot} disabled={syncing}><RefreshCw className={syncing?"spin":""}/>{syncing?"Syncing…":"Sync HubSpot"}</button><button className="primary" onClick={()=>{setForm({...empty});setModal(true)}}><Plus/>Add lead</button></div></header>

@@ -25,7 +25,6 @@ describe('premium UI primitives', () => {
           sorted={[lead]}
           paged={[lead]}
           safePage={1}
-          page={1}
           setPage={() => {}}
           pageCount={1}
           pageSize={10}

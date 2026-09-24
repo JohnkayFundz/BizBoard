@@ -22,6 +22,7 @@ interface Props {
   paged: Lead[]
   safePage: number
   page: number
+  setPage: (updater: (current: number) => number) => void
   pageCount: number
   pageSize: number
   query: string
@@ -46,7 +47,7 @@ interface Props {
   empty: Record<string, unknown>
 }
 
-export function LeadPipeline({ filtered, sorted, paged, safePage, page, pageCount, pageSize, query, setQuery, status, setStatus, source, setSource, sources, stages, tone, sortBy, move, today, money, contactAction, openActivity, edit, remove, setForm, setModal, empty }: Props) {
+export function LeadPipeline({ filtered, sorted, paged, safePage, page, setPage, pageCount, pageSize, query, setQuery, status, setStatus, source, setSource, sources, stages, tone, sortBy, move, today, money, contactAction, openActivity, edit, remove, setForm, setModal, empty }: Props) {
   return (
     <section className="panel pipelinePanel" id="leads" aria-labelledby="pipeline-heading">
       <div className="panelHead panelHeadStack">
@@ -106,7 +107,7 @@ export function LeadPipeline({ filtered, sorted, paged, safePage, page, pageCoun
 
       <div className="pagination">
         <span>Showing {sorted.length ? ((safePage - 1) * pageSize + 1) : 0}–{Math.min(safePage * pageSize, sorted.length)} of {sorted.length}</span>
-        <div><button className="secondary" onClick={() => page > 1 && setQuery(query)} disabled={safePage === 1} aria-label="Previous page"><ChevronLeft />Previous</button><b>Page {safePage} / {pageCount}</b><button className="secondary" onClick={() => page < pageCount && setQuery(query)} disabled={safePage === pageCount} aria-label="Next page">Next<ChevronRight /></button></div>
+        <div><button className="secondary" onClick={() => setPage(current => Math.max(1, current - 1))} disabled={safePage === 1} aria-label="Previous page"><ChevronLeft />Previous</button><b>Page {safePage} / {pageCount}</b><button className="secondary" onClick={() => setPage(current => Math.min(pageCount, current + 1))} disabled={safePage === pageCount} aria-label="Next page">Next<ChevronRight /></button></div>
       </div>
     </section>
   )

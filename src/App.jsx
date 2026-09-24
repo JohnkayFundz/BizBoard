@@ -249,7 +249,19 @@ function generateProposal(){buildProposal()}
  setSaving(false)
 }
  async function remove(id){if(!confirm('Delete this lead?'))return;const r=await supabase.from('crm_leads').delete().eq('id',id);if(r.error)notify(r.error.message);else{setLeads(x=>x.filter(a=>a.id!==id));notify('Lead deleted')}}
- async function move(l,s){if(s===l.status)return;const r=await supabase.from('crm_leads').update({status:s,updated_at:new Date().toISOString()}).eq('id',l.id).select().single();if(r.error)notify(r.error.message);else{setLeads(x=>x.map(a=>a.id===l.id?r.data:a));const h=await supabase.from('crm_lead_activity').insert({lead_id:l.id,activity_type:'Stage change',note:'Stage changed from '+l.status+' to '+s+'.'}).select().single();if(h.error)notify('Stage updated, but history logging failed');else if(activityLead?.id===l.id)setActivities(x=>[h.data,...x]);notify('Stage moved to '+s)}}
+ async function move(l,s){
+  if(s===l.status)return
+  const previous=l
+  const optimistic={...l,status:s,updated_at:new Date().toISOString()}
+  setLeads(x=>x.map(a=>a.id===l.id?optimistic:a))
+  notify('Stage moving to '+s+'…')
+  const r=await supabase.from('crm_leads').update({status:s,updated_at:optimistic.updated_at}).eq('id',l.id).select().single()
+  if(r.error){setLeads(x=>x.map(a=>a.id===l.id?previous:a));notify('Stage update failed — change rolled back');return}
+  setLeads(x=>x.map(a=>a.id===l.id?r.data:a))
+  const h=await supabase.from('crm_lead_activity').insert({lead_id:l.id,activity_type:'Stage change',note:'Stage changed from '+previous.status+' to '+s+'.'}).select().single()
+  if(h.error)notify('Stage updated, but history logging failed');else if(activityLead?.id===l.id)setActivities(x=>[h.data,...x])
+  notify('Stage moved to '+s)
+}
  if(loading)return <div className="center"><div className="loader"/>Loading Client Engine…</div>
  if(!supabase)return <div className="center"><div className="auth"><b className="logo">JK</b><h1>Client Engine</h1><p>Add the Supabase environment variables to run the app.</p></div></div>
  if(!session)return <div className="center auth-bg"><form className="auth" onSubmit={auth}><b className="logo">JK</b><small>PRIVATE BUSINESS TOOL</small><h1>JohnKay Client Engine</h1><p>One private workspace for leads, follow-ups and deal tracking.</p><label>Email<input type="email" value={email} onChange={e=>setEmail(e.target.value)} required/></label><label>Password<input type="password" value={password} onChange={e=>setPassword(e.target.value)} required minLength="6"/></label>{authMsg&&<em>{authMsg}</em>}<button className="primary wide">{mode==='login'?'Sign in':'Create account'}</button><button type="button" className="link" onClick={()=>setMode(mode==='login'?'signup':'login')}>{mode==='login'?'Create a new account':'Back to sign in'}</button></form></div>

@@ -153,7 +153,7 @@ function outreachTemplate(l,channel){
   const value=result?.estimated_value ? money(result.estimated_value) : money(assessment.estimatedValue)
   const hasWebsite=Boolean(intelLead.website||intelUrl.trim())
   const gaps=rows.filter(x=>!x[1]).map(x=>x[0])
-  const company=(intelLead.company||'Prospect').replace(/\\s*[—-]\\s*Website\\s*$/i,'')
+  const company=(intelLead.company||'Prospect').replace(/\s*[—-]\s*Website\s*$/i,'')
   const industry=intelLead.niche||'Business'
   const location=intelLead.location||'Not provided'
   const contact=intelLead.contact_name||'Not provided'
@@ -212,7 +212,8 @@ function outreachTemplate(l,channel){
     'Prepared by JohnKay Fundz'
   ].filter(Boolean).join('\n')
   setIntelReport(report)
- }\n async function generateIntelligence(){buildIntelligenceReport(null);await saveIntelligenceReport(null,intelChecks)}
+ }
+ async function generateIntelligence(){buildIntelligenceReport(null);await saveIntelligenceReport(null,intelChecks)}
  async function saveLeadWebsite(){
   if(!intelLead||!intelUrl.trim())return
   let website=''

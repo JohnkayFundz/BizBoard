@@ -38,28 +38,117 @@ function extractTitle(html: string) {
   return match ? match[1].replace(/\s+/g, ' ').replace(/&amp;/g, '&').trim().slice(0, 180) : ''
 }
 
-async function check(url: string, businessName: string, location: string): Promise<Candidate | null> {
+function decodeHtml(value: string) {
+  return value
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+}
+
+function searchQuery(businessName: string, location: string) {
+  const cleanLocation = location.split(',')[0].trim()
+  return [businessName, cleanLocation, 'Nigeria'].filter(Boolean).join(' ')
+}
+
+function isExcludedHost(hostname: string) {
+  const host = hostname.toLowerCase().replace(/^www\./, '')
+  return [
+    'google.com',
+    'googleusercontent.com',
+    'bing.com',
+    'duckduckgo.com',
+    'facebook.com',
+    'instagram.com',
+    'linkedin.com',
+    'twitter.com',
+    'x.com',
+    'youtube.com',
+    'tiktok.com',
+    'wa.me',
+    'whatsapp.com',
+  ].some(domain => host === domain || host.endsWith('.' + domain))
+}
+
+function extractSearchLinks(html: string) {
+  const results: Array<{ url: string; title: string }> = []
+  const seen = new Set<string>()
+  const pattern = /<a[^>]+class=["'][^"']*result__a[^"']*["'][^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi
+
+  for (const match of html.matchAll(pattern)) {
+    let href = decodeHtml(match[1])
+    const title = decodeHtml(match[2].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim())
+    try {
+      const parsed = new URL(href, 'https://duckduckgo.com')
+      const redirected = parsed.searchParams.get('uddg')
+      if (redirected) href = decodeURIComponent(redirected)
+      const url = new URL(href)
+      if (!['http:', 'https:'].includes(url.protocol)) continue
+      if (isExcludedHost(url.hostname)) continue
+      const normalized = url.origin + url.pathname.replace(/\/$/, '')
+      if (!seen.has(normalized)) {
+        seen.add(normalized)
+        results.push({ url: normalized, title })
+      }
+    } catch {
+      // Ignore malformed search results.
+    }
+    if (results.length >= 12) break
+  }
+
+  return results
+}
+
+async function discoverWebResults(businessName: string, location: string) {
+  const query = encodeURIComponent(searchQuery(businessName, location))
+  const endpoint = 'https://html.duckduckgo.com/html/?q=' + query
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 8000)
+
+  try {
+    const r = await fetch(endpoint, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 JohnKayClientEngine/2.0 website discovery',
+        'Accept': 'text/html,application/xhtml+xml',
+      },
+    })
+    if (!r.ok) return []
+    const html = await r.text()
+    return extractSearchLinks(html)
+  } catch {
+    return []
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
+async function check(url: string, businessName: string, location: string, discoveryTitle = ''): Promise<Candidate | null> {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 7000)
   try {
     const r = await fetch(url, {
       redirect: 'follow',
       signal: controller.signal,
-      headers: { 'User-Agent': 'JohnKayClientEngine/1.0 website resolver' },
+      headers: { 'User-Agent': 'JohnKayClientEngine/2.0 website resolver' },
     })
     const text = await r.text()
-    const title = extractTitle(text.slice(0, 120000))
+    const title = extractTitle(text.slice(0, 120000)) || discoveryTitle
     const tokens = meaningfulTokens(businessName)
     const haystack = (title + ' ' + url).toLowerCase()
     const matches = tokens.filter(token => haystack.includes(token)).length
     const base = compact(businessName)
     const host = new URL(r.url).hostname.replace(/^www\./, '')
-    const domainMatch = host.replace(/[^a-z0-9]/g, '').includes(base) || base.includes(host.replace(/[^a-z0-9]/g, ''))
-    let score = r.ok ? 55 : 20
+    const normalizedHost = host.replace(/[^a-z0-9]/g, '')
+    const domainMatch = normalizedHost.includes(base) || base.includes(normalizedHost)
+    const locationHint = location.split(',')[0].trim().toLowerCase()
+    let score = r.ok ? 50 : 15
     if (domainMatch) score += 25
     if (matches >= 2) score += 20
     else if (matches === 1) score += 10
-    if (location && haystack.includes(location.toLowerCase().split(',')[0].trim())) score += 5
+    if (locationHint && haystack.includes(locationHint)) score += 5
+    if (discoveryTitle && meaningfulTokens(discoveryTitle).some(token => tokens.includes(token))) score += 5
     score = Math.min(100, score)
 
     const confidence: Candidate['confidence'] =
@@ -77,9 +166,11 @@ async function check(url: string, businessName: string, location: string): Promi
       confidence,
       score,
       reason: confidence === 'verified'
-        ? 'Live site with a strong business-name match.'
+        ? discoveryTitle
+          ? 'Found through web discovery and verified as a strong business-name match.'
+          : 'Live site with a strong business-name match.'
         : confidence === 'likely'
-          ? 'Live site found; business-name match should be reviewed before saving.'
+          ? 'Found through web discovery; business-name match should be reviewed before saving.'
           : 'A live domain responded, but the business match is weak.',
     }
   } catch {
@@ -111,22 +202,42 @@ Deno.serve(async (req: Request) => {
       domains.add('www.' + base + '.' + tld)
     }
 
-    const candidates = (await Promise.all([...domains].slice(0, 10).map(domain => check(
-      domain.startsWith('www.') ? 'https://' + domain : 'https://www.' + domain,
-      businessName,
-      location,
-    )))).filter(Boolean) as Candidate[]
+    const discovered = await discoverWebResults(businessName, location)
+    const discoveredChecks = discovered.slice(0, 8).map(item =>
+      check(item.url, businessName, location, item.title)
+    )
 
-    candidates.sort((a, b) => b.score - a.score)
+    const directChecks = [...domains].slice(0, 10).map(domain =>
+      check(
+        domain.startsWith('www.') ? 'https://' + domain : 'https://www.' + domain,
+        businessName,
+        location,
+      )
+    )
+
+    const checked = await Promise.all([...discoveredChecks, ...directChecks])
+    const candidates = checked.filter(Boolean) as Candidate[]
+    const unique = new Map<string, Candidate>()
+
+    for (const candidate of candidates) {
+      const key = candidate.domain.toLowerCase()
+      const existing = unique.get(key)
+      if (!existing || candidate.score > existing.score) unique.set(key, candidate)
+    }
+
+    const finalCandidates = [...unique.values()]
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 6)
 
     return response({
       success: true,
       business_name: businessName,
-      candidates: candidates.slice(0, 6),
+      candidates: finalCandidates,
       searched: domains.size,
-      message: candidates.length
-        ? 'Candidate websites found. Review the match before saving.'
-        : 'No live candidate website was found from the business-name domain patterns.',
+      discovered: discovered.length,
+      message: finalCandidates.length
+        ? 'Candidate websites found through web discovery. Review the match before saving.'
+        : 'No live candidate website was found. You can search manually using the business name and location.',
     })
   } catch (error) {
     return response({ success: false, error: error instanceof Error ? error.message : String(error) }, 500)

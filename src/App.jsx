@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { BarChart3, Bell, BriefcaseBusiness, Check, ChevronDown, Copy, ExternalLink, Filter, LogOut, Plus, RefreshCw, Search, Target, Trash2, Users, X, ArrowUpDown, ChevronLeft, ChevronRight, FileDown } from 'lucide-react'
 import { leadSchema, intelligenceSchema, proposalSchema, cleanText } from './lib/validation'
 import { assessIntelligence, normalizeWebsiteUrl } from './utils/intelligence'
+import { formatNaira } from './utils/formatters'
 import { downloadProposalPdf } from './utils/pdfGenerator'
 import { Metric, Select, FollowupCard } from './components/Ui'
 import { LeadIntelligence } from './components/LeadIntelligence'
@@ -20,7 +21,7 @@ const supabase = import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPAB
 const stages=['New Lead','Contacted','Replied','Interested','Proposal Sent','Won','Lost']
 const tone={ 'New Lead':'blue',Contacted:'indigo',Replied:'violet',Interested:'amber','Proposal Sent':'orange',Won:'green',Lost:'red' }
 const empty={company:'',contact_name:'',role:'',email:'',phone:'',website:'',instagram:'',niche:'',location:'',source:'Manual',status:'New Lead',deal_value:'',next_follow_up:'',notes:''}
-const money=v=>new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:0}).format(Number(v||0))
+const money=formatNaira
 const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
 
 export default function App(){
@@ -31,6 +32,7 @@ export default function App(){
  const [activityLead,setActivityLead]=useState(null),[activities,setActivities]=useState([]),[activityType,setActivityType]=useState('Note'),[activityNote,setActivityNote]=useState(''),[activityFollowUp,setActivityFollowUp]=useState(''),[activityLoading,setActivityLoading]=useState(false),[activitySaving,setActivitySaving]=useState(false),[completingFollowUp,setCompletingFollowUp]=useState(false),[followUpMethod,setFollowUpMethod]=useState('Call'),[followUpOutcome,setFollowUpOutcome]=useState('Needs follow-up'),[followUpNote,setFollowUpNote]=useState(''),[followUpNextDate,setFollowUpNextDate]=useState('')
  const [outreachLead,setOutreachLead]=useState(null),[outreachChannel,setOutreachChannel]=useState('Email'),[outreachMessage,setOutreachMessage]=useState(''),[outreachCopied,setOutreachCopied]=useState(false),[outreachSending,setOutreachSending]=useState(false)
  const [intelLead,setIntelLead]=useState(null),[intelUrl,setIntelUrl]=useState(''),[intelChecks,setIntelChecks]=useState({mobile:false,cta:false,contact:false,ecommerce:false,seo:false}),[intelReport,setIntelReport]=useState(''),[intelCopied,setIntelCopied]=useState(false),[intelAnalyzing,setIntelAnalyzing]=useState(false),[intelResult,setIntelResult]=useState(null)
+ const [mobileNavOpen,setMobileNavOpen]=useState(false)
  const [proposalLead,setProposalLead]=useState(null),[proposalService,setProposalService]=useState('Business Website'),[proposalPrice,setProposalPrice]=useState('150000'),[proposalTimeline,setProposalTimeline]=useState('7–10 business days'),[proposalTaxRate,setProposalTaxRate]=useState('0'),[proposalText,setProposalText]=useState(''),[proposalCopied,setProposalCopied]=useState(false),[proposalAnalyses,setProposalAnalyses]=useState({}),[proposalTracking,setProposalTracking]=useState(false),[proposalPdfBusy,setProposalPdfBusy]=useState(false),[intelligenceHistory,setIntelligenceHistory]=useState([]),[proposalOpportunity,setProposalOpportunity]=useState(null)
 
  useEffect(()=>{if(!supabase){setLoading(false);return} supabase.auth.getSession().then(({data})=>{setSession(data.session);setLoading(false)});const {data:{subscription}}=supabase.auth.onAuthStateChange((_e,s)=>setSession(s));return()=>subscription.unsubscribe()},[])

@@ -43,8 +43,10 @@ export default function App(){
  }
  async function saveIntelligenceReport(result=null, checks=intelChecks){
   if(!intelLead)return null
-  const assessment=assessIntelligence(checks,Boolean(intelLead.website||intelUrl.trim()))
-  const report={lead_id:intelLead.id,website_url:intelUrl.trim()||intelLead.website||null,score:Number(result?.score??assessment.score),checklist:checks,key_findings:result?.findings||[],key_opportunities:result?.opportunities||[],recommended_service:(result?.recommended_service||assessment.recommendedService),estimated_value:Number(result?.estimated_value??assessment.estimatedValue),report_type:(intelLead.website||intelUrl.trim()?'audit':'new_website')}
+  const hasWebsite=Boolean(intelLead.website||intelUrl.trim())
+  const assessment=assessIntelligence(checks,hasWebsite)
+  const opportunityScore=hasWebsite?assessment.score:5
+  const report={lead_id:intelLead.id,website_url:intelUrl.trim()||intelLead.website||null,score:Number(result?.score??opportunityScore),checklist:checks,key_findings:result?.findings||[],key_opportunities:result?.opportunities||[],recommended_service:(result?.recommended_service||assessment.recommendedService),estimated_value:Number(result?.estimated_value??assessment.estimatedValue),report_type:(intelLead.website||intelUrl.trim()?'audit':'new_website')}
   const {data,error}=await supabase.from('crm_intelligence_reports').insert(report).select().single()
   if(error){notify('Report generated, but history save failed: '+error.message);return null}
   const mapped={id:data.id,leadId:data.lead_id,websiteUrl:data.website_url,score:data.score,checklist:data.checklist,keyFindings:data.key_findings,keyOpportunities:data.key_opportunities,recommendedService:data.recommended_service,estimatedValue:Number(data.estimated_value||0),reportType:data.report_type,createdAt:data.created_at}
@@ -147,8 +149,9 @@ function outreachTemplate(l,channel){
  function buildIntelligenceReport(result, checks=intelChecks){
   if(!intelLead)return
   const rows=[['Mobile experience',checks.mobile],['Clear call-to-action',checks.cta],['Contact options',checks.contact],['E-commerce opportunity',checks.ecommerce],['Basic SEO readiness',checks.seo]]
-  const assessment=assessIntelligence(checks,Boolean(intelLead.website||intelUrl.trim()))
-  const score=result?.score ?? assessment.score
+  const hasWebsite=Boolean(intelLead.website||intelUrl.trim())
+  const assessment=assessIntelligence(checks,hasWebsite)
+  const score=result?.score ?? (hasWebsite?assessment.score:5)
   const service=result?.recommended_service || assessment.recommendedService
   const value=result?.estimated_value ? money(result.estimated_value) : money(assessment.estimatedValue)
   const hasWebsite=Boolean(intelLead.website||intelUrl.trim())

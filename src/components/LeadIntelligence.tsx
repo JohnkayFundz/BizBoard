@@ -17,6 +17,21 @@ export function LeadIntelligence({leads,intelLead,setIntelLead,intelUrl,setIntel
  const [websiteCandidates,setWebsiteCandidates]=useState<WebsiteCandidate[]>([])\n const [resolvingWebsite,setResolvingWebsite]=useState(false)\n const [resolverMessage,setResolverMessage]=useState('')\n const hasWebsite=Boolean(intelLead?.website||intelUrl.trim())
  const assessment=assessIntelligence(intelChecks,hasWebsite)
  const setWebsite=(value:string)=>setIntelUrl(value)
+ const findWebsite=async()=>{
+  if(!intelLead) return
+  setResolvingWebsite(true)
+  setResolverMessage('')
+  setWebsiteCandidates([])
+  try{
+   const {data,error}=await supabase.functions.invoke('resolve-website',{body:{business_name:intelLead.company||'',contact_name:intelLead.contact_name||'',location:intelLead.location||'',email:(intelLead as any).email||''}})
+   if(error) throw error
+   const candidates=Array.isArray(data?.candidates)?data.candidates as WebsiteCandidate[]:[]
+   setWebsiteCandidates(candidates)
+   setResolverMessage(data?.message|| (candidates.length?'Candidate websites found. Review the match before saving.':'No verified candidate website found.'))
+  }catch(error){
+   setResolverMessage(error instanceof Error?error.message:'Unable to find a website right now.')
+  }finally{setResolvingWebsite(false)}
+ }
  const selectLead=(value:string)=>{
   const l=leads.find(x=>String(x.id)===value)
   setIntelLead(l||null);setIntelUrl(l?.website||'');setIntelReport('');setIntelResult(null);setIntelChecks({...EMPTY_INTELLIGENCE_CHECKS})

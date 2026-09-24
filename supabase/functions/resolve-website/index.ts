@@ -102,7 +102,14 @@ function extractSearchLinks(html: string, engine: 'ddg' | 'bing') {
   return results
 }
 
-async function fetchSearchResults(endpoint: string, engine: 'ddg' | 'bing') {
+type DiscoveryDiagnostic = {
+  engine: 'ddg' | 'bing'
+  status: 'ok' | 'blocked' | 'error'
+  http_status: number | null
+  results: number
+}
+
+async function fetchSearchResults(endpoint: string, engine: 'ddg' | 'bing'): Promise<{ results: Array<{ url: string; title: string }>; diagnostic: DiscoveryDiagnostic }> {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 8000)
   try {
@@ -113,10 +120,20 @@ async function fetchSearchResults(endpoint: string, engine: 'ddg' | 'bing') {
         'Accept': 'text/html,application/xhtml+xml',
       },
     })
-    if (!r.ok) return []
-    return extractSearchLinks(await r.text(), engine)
+    const html = await r.text()
+    const results = r.ok ? extractSearchLinks(html, engine) : []
+    const diagnostic: DiscoveryDiagnostic = {
+      engine,
+      status: r.ok ? (results.length ? 'ok' : 'blocked') : 'blocked',
+      http_status: r.status,
+      results: results.length,
+    }
+    return { results, diagnostic }
   } catch {
-    return []
+    return {
+      results: [],
+      diagnostic: { engine, status: 'error', http_status: null, results: 0 },
+    }
   } finally {
     clearTimeout(timeout)
   }
@@ -132,15 +149,17 @@ async function discoverWebResults(businessName: string, location: string) {
   const seen = new Set<string>()
   const merged: Array<{ url: string; title: string }> = []
   for (const group of groups) {
-    for (const item of group) {
+    for (const item of group.results) {
       const key = item.url.toLowerCase()
       if (seen.has(key)) continue
       seen.add(key)
       merged.push(item)
-      if (merged.length >= 12) return merged
+      if (merged.length >= 12) {
+        return { results: merged, diagnostics: groups.map(group => group.diagnostic) }
+      }
     }
   }
-  return merged
+  return { results: merged, diagnostics: groups.map(group => group.diagnostic) }
 }
 
 async function check(url: string, businessName: string, location: string, discoveryTitle = ''): Promise<Candidate | null> {
@@ -221,7 +240,8 @@ Deno.serve(async (req: Request) => {
       domains.add('www.' + base + '.' + tld)
     }
 
-    const discovered = await discoverWebResults(businessName, location)
+    const discovery = await discoverWebResults(businessName, location)
+    const discovered = discovery.results
     const discoveredChecks = discovered.slice(0, 8).map(item =>
       check(item.url, businessName, location, item.title)
     )
@@ -254,6 +274,7 @@ Deno.serve(async (req: Request) => {
       candidates: finalCandidates,
       searched: domains.size,
       discovered: discovered.length,
+      discovery: discovery.diagnostics,
       message: finalCandidates.length
         ? 'Candidate websites found through web discovery. Review the match before saving.'
         : 'No live candidate website was found. You can search manually using the business name and location.',

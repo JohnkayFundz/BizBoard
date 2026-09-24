@@ -1,4 +1,4 @@
-import { Target, Globe2, PlusCircle, Search, ExternalLink } from 'lucide-react'\nimport { createClient } from '@supabase/supabase-js'
+import { useState } from 'react'\nimport { Target, Globe2, PlusCircle, Search, ExternalLink } from 'lucide-react'\nimport { createClient } from '@supabase/supabase-js'
 import { assessIntelligence, EMPTY_INTELLIGENCE_CHECKS } from '../utils/intelligence'
 import type { IntelligenceChecks } from '../types/crm'
 import type { IntelligenceReport } from '../types/intelligence'

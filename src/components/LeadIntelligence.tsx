@@ -4,11 +4,12 @@ import { createClient } from '@supabase/supabase-js'
 import { assessIntelligence, EMPTY_INTELLIGENCE_CHECKS } from '../utils/intelligence'
 import type { IntelligenceChecks } from '../types/crm'
 import type { IntelligenceReport } from '../types/intelligence'
+import { env } from '../lib/env'
 
 type Lead={id:string|number;company?:string|null;contact_name?:string|null;email?:string|null;website?:string|null;niche?:string|null;location?:string|null;status?:string|null}
 type Analysis={score?:number;recommended_service?:string;estimated_value?:number;response_ms?:number}
 type WebsiteCandidate={url:string;domain:string;status:number|null;title:string;confidence:'verified'|'likely'|'unverified';score:number;reason:string}
-const supabase=createClient(import.meta.env.VITE_SUPABASE_URL,import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY)
+const supabase=env?createClient(env.VITE_SUPABASE_URL,env.VITE_SUPABASE_PUBLISHABLE_KEY):null
 
 interface Props{
  leads:Lead[]; intelLead:Lead|null; setIntelLead:(lead:Lead|null)=>void; intelUrl:string; setIntelUrl:(value:string)=>void
@@ -33,6 +34,7 @@ export function LeadIntelligence({leads,intelLead,setIntelLead,intelUrl,setIntel
   setResolverDiagnostics(null)
   setWebsiteCandidates([])
   try{
+   if(!supabase){setResolverMessage('Supabase environment is not configured.');return}
    const {data,error}=await supabase.functions.invoke('resolve-website',{body:{business_name:intelLead.company||'',contact_name:intelLead.contact_name||'',location:intelLead.location||'',email:intelLead.email||''}})
    if(error) throw error
    const candidates=Array.isArray(data?.candidates)?data.candidates as WebsiteCandidate[]:[]

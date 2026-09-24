@@ -6,6 +6,7 @@ import { Metric } from '../components/Ui'
 import { LeadPipeline } from '../components/LeadPipeline'
 import { assessIntelligence } from '../utils/intelligence'
 import { calculatePipelineMetrics, findPotentialDuplicateLeads } from '../utils/pipeline'
+import { buildMailtoUrl, buildWhatsAppUrl, buildInstagramInboxUrl, normalizeWhatsAppPhone } from '../utils/outreach'
 
 describe('premium UI primitives', () => {
   it('renders a KPI metric with its supporting metadata', () => {
@@ -47,6 +48,13 @@ describe('premium UI primitives', () => {
 
     expect(duplicates).toHaveLength(1)
     expect(duplicates[0].ids).toEqual([1, 2])
+  })
+
+  it('builds encoded outreach deep links and normalizes Nigerian phone numbers', () => {
+    expect(normalizeWhatsAppPhone('+234 801-234-5678')).toBe('2348012345678')
+    expect(buildWhatsAppUrl('08012345678', 'Hello John & welcome')).toBe('https://wa.me/2348012345678?text=Hello%20John%20%26%20welcome')
+    expect(buildMailtoUrl('owner@example.com', 'Quick idea', 'Hello & welcome')).toBe('mailto:owner@example.com?subject=Quick%20idea&body=Hello%20%26%20welcome')
+    expect(buildInstagramInboxUrl()).toBe('https://instagram.com/direct/inbox/')
   })
 
   it('supports keyboard-friendly pipeline filtering', async () => {

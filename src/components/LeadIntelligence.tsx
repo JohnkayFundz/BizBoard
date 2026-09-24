@@ -27,7 +27,6 @@ export function LeadIntelligence({leads,intelLead,setIntelLead,intelUrl,setIntel
  const [resolverDiagnostics,setResolverDiagnostics]=useState<{searched:number;discovered:number}|null>(null)
  const hasWebsite=Boolean(intelLead?.website||intelUrl.trim())
  const assessment=assessIntelligence(intelChecks,hasWebsite)
- const opportunityAreas=Object.values(intelChecks).filter(Boolean).length
  const setWebsite=(value:string)=>setIntelUrl(value)
  const findWebsite=async()=>{
   if(!intelLead) return

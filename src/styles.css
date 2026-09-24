@@ -40,3 +40,5 @@ tbody tr{transition:background .15s,transform .15s}tbody tr:hover{background:rgb
 .intelHint{display:flex;align-items:center;gap:6px}
 .intelHint svg{width:13px;height:13px;flex:none}
 @media(max-width:900px){.intelScoreCard{grid-template-columns:1fr}.intelScoreCard strong{white-space:normal}.intelligenceGrid,.proposalGrid,.outreachGrid{grid-template-columns:1fr}}
+
+.intelHistory{margin-top:14px;border-top:1px solid #20324a;padding-top:12px}.intelHistoryRow{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:11px 0;border-bottom:1px solid #1a2a3e}.intelHistoryRow>div:first-child{min-width:0}.intelHistoryRow strong{display:block;font-size:12px;color:#e8eef7}.intelHistoryRow small{display:block;margin-top:4px;color:#74859d;font-size:11px}.intelHistoryActions{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}.intelHistoryActions button{white-space:nowrap}.intelEmpty.compact{min-height:70px;padding:16px}@media(max-width:700px){.intelHistoryRow{align-items:flex-start;flex-direction:column}.intelHistoryActions{width:100%;justify-content:flex-start}}

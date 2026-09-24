@@ -55,6 +55,11 @@ export interface DuplicateGroup {
 export function findPotentialDuplicateLeads(leads: PipelineLead[]): DuplicateGroup[] {
   const groups = new Map<string, DuplicateGroup>()
   const seen = new Map<string, string | number>()
+  const reasonPriority: Record<DuplicateGroup['reason'], number> = {
+    company: 1,
+    phone: 2,
+    email: 3,
+  }
 
   for (const lead of leads) {
     const identityKeys = [
@@ -67,8 +72,13 @@ export function findPotentialDuplicateLeads(leads: PipelineLead[]): DuplicateGro
       const existingId = seen.get(key)
       if (existingId !== undefined && existingId !== lead.id) {
         const reason = key.split(':', 1)[0] as DuplicateGroup['reason']
-        const groupKey = `${reason}:${existingId}:${lead.id}`
-        if (!groups.has(groupKey)) groups.set(groupKey, { ids: [existingId, lead.id].sort((a, b) => String(a).localeCompare(String(b))), reason })
+        const ids = [existingId, lead.id].sort((a, b) => String(a).localeCompare(String(b)))
+        const groupKey = ids.map(String).join(':')
+        const existingGroup = groups.get(groupKey)
+
+        if (!existingGroup || reasonPriority[reason] > reasonPriority[existingGroup.reason]) {
+          groups.set(groupKey, { ids, reason })
+        }
       } else {
         seen.set(key, lead.id ?? '')
       }

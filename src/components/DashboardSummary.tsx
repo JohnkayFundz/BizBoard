@@ -28,8 +28,8 @@ export function DashboardSummary({ metrics, followUps, openActivity, money }: Pr
       <section className="metrics" aria-label="Pipeline summary">
         <Metric icon={<Users />} label="Total leads" value={metrics.total} meta="Live records" />
         <Metric icon={<BriefcaseBusiness />} label="Active pipeline" value={metrics.active} meta="Open opportunities" tone="accent" />
-        <Metric icon={<BarChart3 />} label="Pipeline value" value={money(metrics.pipeline)} meta="Open value" tone="accent" />
-        <Metric icon={<Check />} label="Won value" value={money(metrics.won)} meta="Closed revenue" tone="success" />
+        <Metric icon={<BarChart3 />} label="Open Value" value={money(metrics.pipeline)} meta="Active opportunities" tone="accent" />
+        <Metric icon={<Check />} label="Closed Revenue" value={money(metrics.won)} meta="Won opportunities" tone="success" />
         <Metric icon={<Bell />} label="Follow-ups due" value={metrics.due} meta={metrics.due ? 'Needs attention' : 'All clear'} tone={metrics.due ? 'accent' : 'success'} />
       </section>
 

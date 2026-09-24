@@ -14,7 +14,7 @@ type Candidate = {
 function classifyHost(hostname: string, title = ''): Candidate['source_type'] {
   const host = hostname.toLowerCase().replace(/^www\\./, '')
   const social = ['facebook.com','instagram.com','linkedin.com','twitter.com','x.com','youtube.com','tiktok.com','wa.me','whatsapp.com']
-  const directories = ['foursquare.com','tripadvisor.com','yelp.com','yellowpages.com','hotfrog.com','finelib.com','businesslist.com.ng','connectnigeria.com','vconnect.com','ngex.com','directory']
+  const directories = ['wikipedia.org','foursquare.com','tripadvisor.com','yelp.com','yellowpages.com','hotfrog.com','finelib.com','businesslist.com.ng','connectnigeria.com','vconnect.com','ngex.com','directory']
   const marketplaces = ['jiji.ng','jumia.com.ng','konga.com','propertypro.ng','privateproperty.com.ng','cars45.com','autochek.africa']
   const media = ['bbc.com','cnn.com','reuters.com','guardian.ng','punchng.com','vanguardngr.com','thisdaylive.com','tribuneonlineng.com','premiumtimesng.com','businessday.ng','nairaland.com']
   if (social.some(d => host === d || host.endsWith('.' + d))) return 'social_profile'

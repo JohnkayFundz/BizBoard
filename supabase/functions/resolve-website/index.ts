@@ -155,27 +155,22 @@ async function fetchJinaSearch(businessName: string, location: string): Promise<
     const text = await r.text()
     const results: Array<{ url: string; title: string }> = []
     const seen = new Set<string>()
-    const patterns = [
-      /\\[([^\\]]+)\\]\\((https?:\\/\\/[^\\s)<>]+)\\)/gi,
-      /(https?:\\/\\/[^\\s)<>]+)/gi,
-    ]
-    for (const pattern of patterns) {
-      for (const match of text.matchAll(pattern)) {
-        const rawUrl = match[2] || match[1]
-        const linkTitle = match[2] ? match[1] : ''
-        try {
-          const url = new URL(rawUrl.replace(/[.,;]+$/, ''))
-          if (!['http:', 'https:'].includes(url.protocol) || isExcludedHost(url.hostname)) continue
-          const normalized = url.origin + url.pathname.replace(/\\/$/, '')
-          if (seen.has(normalized)) continue
-          seen.add(normalized)
-          const start = Math.max(0, (match.index ?? 0) - 180)
-          const context = text.slice(start, match.index ?? 0).replace(/\\s+/g, ' ').trim()
-          results.push({ url: normalized, title: (linkTitle || context).slice(-180) })
-          if (results.length >= 10) break
-        } catch {
-          // Ignore malformed URLs.
-        }
+    const pattern = /(https?:\/\/[^\s)<>]+)/gi
+    for (const match of text.matchAll(pattern)) {
+      try {
+        const url = new URL(match[1])
+        if (!['http:', 'https:'].includes(url.protocol) || isExcludedHost(url.hostname)) continue
+        const normalized = url.origin + url.pathname.replace(/\/$/, '')
+        if (seen.has(normalized)) continue
+        seen.add(normalized)
+        const start = Math.max(0, (match.index ?? 0) - 180)
+        const context = text.slice(start, match.index ?? 0).replace(/\s+/g, ' ').trim()
+        results.push({ url: normalized, title: context.slice(-140) })
+        if (results.length >= 10) break
+      } catch {
+        // Ignore malformed URLs.
+      }
+    }
       }
       if (results.length >= 10) break
     }

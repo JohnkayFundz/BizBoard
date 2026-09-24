@@ -1,10 +1,10 @@
-import { Target, Globe2, PlusCircle } from 'lucide-react'
+import { useState } from 'react'\nimport { Target, Globe2, PlusCircle, Search, ExternalLink } from 'lucide-react'\nimport { createClient } from '@supabase/supabase-js'
 import { assessIntelligence, EMPTY_INTELLIGENCE_CHECKS } from '../utils/intelligence'
 import type { IntelligenceChecks } from '../types/crm'
 import type { IntelligenceReport } from '../types/intelligence'
 
 type Lead={id:string|number;company?:string|null;contact_name?:string|null;website?:string|null;niche?:string|null;location?:string|null;status?:string|null}
-type Analysis={score?:number;recommended_service?:string;estimated_value?:number;response_ms?:number}
+type Analysis={score?:number;recommended_service?:string;estimated_value?:number;response_ms?:number}\ntype WebsiteCandidate={url:string;domain:string;status:number|null;title:string;confidence:'verified'|'likely'|'unverified';score:number;reason:string}
 interface Props{
  leads:Lead[]; intelLead:Lead|null; setIntelLead:(lead:Lead|null)=>void; intelUrl:string; setIntelUrl:(value:string)=>void
  setIntelReport:(value:string)=>void; setIntelResult:(value:Analysis|null)=>void; setIntelChecks:(value:IntelligenceChecks|((current:IntelligenceChecks)=>IntelligenceChecks))=>void
@@ -14,7 +14,7 @@ interface Props{
 }
 
 export function LeadIntelligence({leads,intelLead,setIntelLead,intelUrl,setIntelUrl,setIntelReport,setIntelResult,setIntelChecks,intelChecks,saveLeadWebsite,analyzeWebsite,intelAnalyzing,generateIntelligence,intelResult,intelReport,copyIntelligence,intelCopied,intelligenceHistory,applyIntelligenceReport,onGenerateProposalFromOpportunity}:Props){
- const hasWebsite=Boolean(intelLead?.website||intelUrl.trim())
+ const [websiteCandidates,setWebsiteCandidates]=useState<WebsiteCandidate[]>([])\n const [resolvingWebsite,setResolvingWebsite]=useState(false)\n const [resolverMessage,setResolverMessage]=useState('')\n const hasWebsite=Boolean(intelLead?.website||intelUrl.trim())
  const assessment=assessIntelligence(intelChecks,hasWebsite)
  const setWebsite=(value:string)=>setIntelUrl(value)
  const selectLead=(value:string)=>{
@@ -25,7 +25,7 @@ export function LeadIntelligence({leads,intelLead,setIntelLead,intelUrl,setIntel
   <div className="panelHead"><div><h2>Lead Intelligence</h2><p>Turn a prospect into a clear sales opportunity before you reach out.</p></div><span>{hasWebsite?'Opportunity scanner':'New website opportunity'}</span></div>
   <div className="intelligenceGrid"><div className="intelForm">
    <label className="field"><span className="fieldLabel">Choose a lead</span><select value={intelLead?.id||''} onChange={e=>selectLead(e.target.value)}><option value="">Select a prospect…</option>{leads.filter(l=>!['Won','Lost'].includes(l.status||'')).map(l=><option key={l.id} value={l.id}>{l.company} · {l.contact_name||'No contact'}</option>)}</select></label>
-   <label className="field"><span className="fieldLabel">Website URL</span><input value={intelUrl} onChange={e=>setWebsite(e.target.value)} placeholder="https://example.com" inputMode="url"/>{intelLead&&!intelLead.website&&<small className="intelHint"><Globe2/> No website is saved for this lead. Leave this blank to assess it as a new website opportunity.</small>}</label>
+   <label className="field"><span className="fieldLabel">Website URL</span><input value={intelUrl} onChange={e=>setWebsite(e.target.value)} placeholder="https://example.com" inputMode="url"/>{intelLead&&!intelLead.website&&<small className="intelHint"><Globe2/> No website is saved for this lead. You can search likely business domains below.</small>}</label>\n   {intelLead&&<div className="intelButtons"><button type="button" className="secondary" onClick={findWebsite} disabled={resolvingWebsite}>{resolvingWebsite?'Searching…':<><Search/>Find website</>}</button></div>}\n   {resolverMessage&&<div className="intelHint" style={{marginTop:8}}><Globe2/>{resolverMessage}</div>}\n   {websiteCandidates.length>0&&<div className="intelLeadSummary" style={{display:'grid',gap:8,marginTop:10}}><strong>Website candidates</strong>{websiteCandidates.map(candidate=><div key={candidate.url} style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,flexWrap:'wrap'}}><div style={{minWidth:0}}><span style={{display:'block',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{candidate.domain}</span><small style={{display:'block',marginTop:3}}>{candidate.confidence} · {candidate.reason}</small></div><div style={{display:'flex',gap:6}}><button type="button" className="secondary" onClick={()=>setWebsite(candidate.url)}>Use</button><button type="button" className="secondary" title="Open candidate" onClick={()=>window.open(candidate.url,'_blank','noopener,noreferrer')}><ExternalLink/></button></div></div>)}</div>}
    {intelLead&&<div className="intelLeadSummary"><strong>{intelLead.company}</strong><span>{intelLead.niche||'Business prospect'}{intelLead.location?' · '+intelLead.location:''}</span></div>}
    <div className="intelScoreCard"><div><small>OPPORTUNITY SCORE</small><strong>{assessment.score}/5</strong></div><div><small>{hasWebsite?'RECOMMENDED SERVICE':'OPPORTUNITY TYPE'}</small><strong>{hasWebsite?assessment.recommendedService:'New website'}</strong></div><div><small>ESTIMATED VALUE</small><strong>₦{assessment.estimatedValue.toLocaleString('en-NG')}</strong></div></div>
    <div className="intelChecks"><strong>Opportunity checklist</strong>{[['mobile','Mobile experience'],['cta','Clear call-to-action'],['contact','Contact options'],['ecommerce','E-commerce opportunity'],['seo','Basic SEO readiness']].map(([k,label])=><label className="checkRow" key={k}><input type="checkbox" checked={Boolean(intelChecks[k as keyof IntelligenceChecks])} onChange={e=>setIntelChecks(x=>({...x,[k]:e.target.checked}))}/><span>{label}</span></label>)}</div>

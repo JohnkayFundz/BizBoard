@@ -188,7 +188,7 @@ function outreachTemplate(l,channel){
   const timeline=service==='E-commerce Website'?'10–14 business days':service==='Custom Web Application'?'14–21 business days':'7–10 business days'
   return {service,price:String(price),timeline}
  }
- function buildProposal(l=proposalLead,service=proposalService,price=proposalPrice,timeline=proposalTimeline){
+ async function buildProposal(l=proposalLead,service=proposalService,price=proposalPrice,timeline=proposalTimeline){
   if(!l)return
   const validated=proposalSchema.safeParse({service,investment:price,timeline,taxRate:proposalTaxRate});if(!validated.success){notify(validated.error.issues[0]?.message||'Check proposal values');return}
   const investment=Number(price||0),taxRate=Number(proposalTaxRate||0),tax=investment*taxRate/100,total=investment+tax
@@ -200,6 +200,21 @@ function outreachTemplate(l,channel){
   const deliverables=service==='E-commerce Website'?['Responsive product-focused storefront','Product/category pages and clear calls to action','Mobile-first shopping experience','Contact/order flow and conversion improvements','Basic SEO-ready page structure']:service==='Website Redesign'?['Modern responsive redesign','Improved navigation and conversion flow','Mobile experience improvements','Clear contact and call-to-action sections','Basic SEO-ready page structure']:service==='Custom Web Application'?['Responsive application interface','Core workflow and dashboard screens','Frontend integration and validation','Deployment-ready production build','Handover and basic usage guidance']:['Modern responsive business website','Professional homepage and service/product sections','Mobile-first layout and clear calls to action','Contact/inquiry integration','Basic SEO-ready page structure']
   const lines=['WEBSITE PROJECT PROPOSAL','','Prepared for: '+company,'Contact: '+(l.contact_name||'Not provided'),'Prepared by: John Kalumba — JohnKay Fundz','','PROJECT OVERVIEW',`I propose building or improving ${company}'s online presence with ${/^[aeiou]/i.test(service) ? 'an' : 'a'} ${service.toLowerCase()} focused on a professional mobile experience, clear customer journeys, and stronger conversion opportunities.`, '', 'RECOMMENDED SOLUTION',service,'', 'KEY OPPORTUNITIES',...(opportunities.length?opportunities.map(x=>'• '+x):['• Improve the website experience and conversion path']),...(findings.length?['','ANALYSIS FINDINGS',...findings.map(x=>'• '+x)]:[]),'','DELIVERABLES',...deliverables.map(x=>'• '+x),'','TIMELINE',timeline,'','INVESTMENT',money(investment),'','TAX ('+taxRate+'%)',money(tax),'','TOTAL CLIENT INVESTMENT',money(total),'','MILESTONE PAYMENTS',...milestones.map(m=>m.percent+'% · '+m.label+' · '+money(m.amount)),'','NEXT STEPS','1. Confirm the scope and required content.','2. Provide the business information, images and other assets needed for the build.','3. Approve the project start and payment arrangement.','4. Development, review and final delivery.','','Thank you for considering JohnKay Fundz. I’d be happy to discuss the project and tailor the scope to your exact needs.','','John Kalumba','JohnKay Fundz'].join('\\n')
   setProposalText(lines)
+  const proposalPayload={
+   lead_id:l.id,
+   service:validated.data.service,
+   investment,
+   tax_rate:taxRate,
+   tax,
+   total,
+   timeline:validated.data.timeline,
+   milestones,
+   markdown:lines,
+   status:'draft'
+  }
+  const saved=await supabase.from('crm_proposals').insert(proposalPayload).select().single()
+  if(saved.error){notify('Proposal generated, but draft persistence failed: '+saved.error.message)}
+  else notify('Proposal generated and saved to the CRM')
  }
  function downloadProposalMarkdown(){
  if(!proposalText)return
@@ -221,6 +236,7 @@ function generateProposal(){buildProposal()}
    if(u.error){notify(u.error.message);return}
    const a=await supabase.from('crm_lead_activity').insert({lead_id:proposalLead.id,activity_type:'Proposal Sent',note:`Proposal prepared and marked as sent. Service: ${proposalService}. Investment: ${money(value)}. Follow-up scheduled for ${followUpDate}.`}).select().single()
    if(a.error){notify(a.error.message);return}
+   await supabase.from('crm_proposals').update({status:'sent'}).eq('lead_id',proposalLead.id).eq('status','draft')
    setLeads(x=>x.map(l=>l.id===u.data.id?u.data:l));setProposalLead(u.data)
    if(activityLead?.id===u.data.id)setActivities(x=>[a.data,...x])
    notify(`Proposal marked sent · ${money(value)} · follow-up ${followUpDate}`)

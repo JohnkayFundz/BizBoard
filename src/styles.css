@@ -358,3 +358,9 @@ tbody tr:hover{background:rgba(30,41,59,.32)}
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{scroll-behavior:auto!important;transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important}
 }
+
+.field{position:relative;display:grid;gap:7px;min-width:0}
+.fieldLabel{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#7f90a8}
+.field input,.field select{order:2}
+.field:focus-within .fieldLabel{color:#d7a640}
+.field input:invalid:not(:placeholder-shown),.field select:invalid{border-color:rgba(248,113,113,.55)}

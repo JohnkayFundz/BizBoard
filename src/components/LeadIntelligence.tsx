@@ -8,7 +8,7 @@ import { env } from '../lib/env'
 
 type Lead={id:string|number;company?:string|null;contact_name?:string|null;email?:string|null;website?:string|null;niche?:string|null;location?:string|null;status?:string|null}
 type Analysis={score?:number;recommended_service?:string;estimated_value?:number;response_ms?:number}
-type WebsiteCandidate={url:string;domain:string;status:number|null;title:string;confidence:'verified'|'likely'|'unverified';score:number;reason:string}
+type WebsiteCandidate={url:string;domain:string;status:number|null;title:string;confidence:'verified'|'likely'|'unverified';score:number;reason:string;source_type?:'official_website'|'social_profile'|'directory'|'marketplace'|'portfolio'|'news_media'|'unknown'}
 const supabase=env?createClient(env.VITE_SUPABASE_URL,env.VITE_SUPABASE_PUBLISHABLE_KEY):null
 
 interface Props{
@@ -21,6 +21,7 @@ interface Props{
 
 export function LeadIntelligence({leads,intelLead,setIntelLead,intelUrl,setIntelUrl,setIntelReport,setIntelResult,setIntelChecks,intelChecks,saveLeadWebsite,analyzeWebsite,intelAnalyzing,generateIntelligence,intelResult,intelReport,copyIntelligence,intelCopied,intelligenceHistory,applyIntelligenceReport,onGenerateProposalFromOpportunity}:Props){
  const [websiteCandidates,setWebsiteCandidates]=useState<WebsiteCandidate[]>([])
+ const [otherOnlinePresence,setOtherOnlinePresence]=useState<WebsiteCandidate[]>([])
  const [resolvingWebsite,setResolvingWebsite]=useState(false)
  const [resolverMessage,setResolverMessage]=useState('')
  const [resolverDiagnostics,setResolverDiagnostics]=useState<{searched:number;discovered:number}|null>(null)
@@ -34,21 +35,24 @@ export function LeadIntelligence({leads,intelLead,setIntelLead,intelUrl,setIntel
   setResolverMessage('')
   setResolverDiagnostics(null)
   setWebsiteCandidates([])
+  setOtherOnlinePresence([])
   try{
    if(!supabase){setResolverMessage('Supabase environment is not configured.');return}
    const {data,error}=await supabase.functions.invoke('resolve-website',{body:{business_name:intelLead.company||'',contact_name:intelLead.contact_name||'',location:intelLead.location||'',email:intelLead.email||''}})
    if(error) throw error
    const candidates=Array.isArray(data?.candidates)?data.candidates as WebsiteCandidate[]:[]
+   const presence=Array.isArray(data?.other_online_presence)?data.other_online_presence as WebsiteCandidate[]:[]
    setWebsiteCandidates(candidates)
+   setOtherOnlinePresence(presence)
    if(typeof data?.searched==='number'&&typeof data?.discovered==='number') setResolverDiagnostics({searched:data.searched,discovered:data.discovered})
-   setResolverMessage(data?.message|| (candidates.length?'Candidate websites found. Review the match before saving.':'No verified candidate website found.'))
+   setResolverMessage(data?.message|| (candidates.length?'Official website candidates found. Review the match before saving.':presence.length?'No official website was verified. Other online presence was found and classified separately.':'No live candidate website was found. You can search manually using the business name and location.'))
   }catch(error){
    setResolverMessage(error instanceof Error?error.message:'Unable to find a website right now.')
   }finally{setResolvingWebsite(false)}
  }
  const selectLead=(value:string)=>{
   const l=leads.find(x=>String(x.id)===value)
-  setIntelLead(l||null);setIntelUrl(l?.website||'');setIntelReport('');setIntelResult(null);setIntelChecks({...EMPTY_INTELLIGENCE_CHECKS});setWebsiteCandidates([]);setResolverMessage('');setResolverDiagnostics(null)
+  setIntelLead(l||null);setIntelUrl(l?.website||'');setIntelReport('');setIntelResult(null);setIntelChecks({...EMPTY_INTELLIGENCE_CHECKS});setWebsiteCandidates([]);setOtherOnlinePresence([]);setResolverMessage('');setResolverDiagnostics(null)
  }
  return (<section className="panel intelligencePanel" id="intelligence">
   <div className="panelHead"><div><h2>Lead Intelligence</h2><p>Turn a prospect into a clear sales opportunity before you reach out.</p></div><span>{hasWebsite?'Opportunity scanner':'New website opportunity'}</span></div>
@@ -57,7 +61,8 @@ export function LeadIntelligence({leads,intelLead,setIntelLead,intelUrl,setIntel
    <label className="field"><span className="fieldLabel">Website URL</span><input value={intelUrl} onChange={e=>setWebsite(e.target.value)} placeholder="https://example.com" inputMode="url"/>{intelLead&&!intelLead.website&&<small className="intelHint"><Globe2/> No website is saved for this lead. You can search likely business domains below.</small>}</label>
    {intelLead&&<div className="intelButtons"><button type="button" className="secondary" onClick={findWebsite} disabled={resolvingWebsite}>{resolvingWebsite?'Searching…':<><Search/>Find website</>}</button></div>}
    {resolverMessage&&<div className="intelHint" style={{marginTop:8}}><Globe2/>{resolverMessage}{resolverDiagnostics&&<small style={{display:'block',marginTop:4}}>Diagnostic: {resolverDiagnostics.discovered} web results discovered · {resolverDiagnostics.searched} direct domains checked.</small>}</div>}
-   {websiteCandidates.length>0&&<div className="intelLeadSummary" style={{display:'grid',gap:8,marginTop:10}}><strong>Website candidates</strong>{websiteCandidates.map(candidate=><div key={candidate.url} style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,flexWrap:'wrap'}}><div style={{minWidth:0}}><span style={{display:'block',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{candidate.domain}</span><small style={{display:'block',marginTop:3}}>{candidate.confidence} · {candidate.reason}</small></div><div style={{display:'flex',gap:6}}><button type="button" className="secondary" onClick={()=>setWebsite(candidate.url)}>Use</button><button type="button" className="secondary" title="Open candidate" onClick={()=>window.open(candidate.url,'_blank','noopener,noreferrer')}><ExternalLink/></button></div></div>)}</div>}
+   {websiteCandidates.length>0&&<div className="intelLeadSummary" style={{display:'grid',gap:8,marginTop:10}}><strong>Official website candidates</strong>{websiteCandidates.map(candidate=><div key={candidate.url} style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,flexWrap:'wrap'}}><div style={{minWidth:0}}><span style={{display:'block',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{candidate.domain}</span><small style={{display:'block',marginTop:3}}>{candidate.confidence} · {candidate.reason}</small></div><div style={{display:'flex',gap:6}}><button type="button" className="secondary" onClick={()=>setWebsite(candidate.url)}>Use</button><button type="button" className="secondary" title="Open candidate" onClick={()=>window.open(candidate.url,'_blank','noopener,noreferrer')}><ExternalLink/></button></div></div>)}</div>}
+   {otherOnlinePresence.length>0&&<div className="intelLeadSummary" style={{display:'grid',gap:8,marginTop:10}}><strong>Other online presence</strong><small>These results are not treated as the business's official website.</small>{otherOnlinePresence.map(candidate=><div key={candidate.url} style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,flexWrap:'wrap'}}><div style={{minWidth:0}}><span style={{display:'block',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{candidate.domain}</span><small style={{display:'block',marginTop:3}}>{candidate.source_type?.replace('_',' ')} · {candidate.reason}</small></div><button type="button" className="secondary" title="Open result" onClick={()=>window.open(candidate.url,'_blank','noopener,noreferrer')}><ExternalLink/></button></div>)}</div>}
    {intelLead&&<div className="intelLeadSummary"><strong>{intelLead.company}</strong><span>{intelLead.niche||'Business prospect'}{intelLead.location?' · '+intelLead.location:''}</span></div>}
    <div className="intelScoreCard">{hasWebsite?<><div><small>OPPORTUNITY SCORE</small><strong>{assessment.score}/5</strong></div><div><small>RECOMMENDED SERVICE</small><strong>{assessment.recommendedService}</strong></div></>:<><div><small>OPPORTUNITY AREAS</small><strong>{opportunityAreas}/5</strong></div><div><small>OPPORTUNITY TYPE</small><strong>New website</strong></div></>}<div><small>ESTIMATED VALUE</small><strong>₦{assessment.estimatedValue.toLocaleString('en-NG')}</strong></div></div>
    <div className="intelChecks"><strong>{hasWebsite?'Website audit checklist':'Website opportunity areas'}</strong>{[['mobile','Mobile-first experience'],['cta','Clear call-to-action'],['contact','Contact / WhatsApp options'],['ecommerce','E-commerce capability'],['seo','Basic SEO setup']].map(([k,label])=><label className="checkRow" key={k}><input type="checkbox" checked={Boolean(intelChecks[k as keyof IntelligenceChecks])} onChange={e=>setIntelChecks(x=>({...x,[k]:e.target.checked}))}/><span>{label}</span></label>)}</div>

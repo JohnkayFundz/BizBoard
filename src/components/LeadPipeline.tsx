@@ -21,7 +21,6 @@ interface Props {
   sorted: Lead[]
   paged: Lead[]
   safePage: number
-  page: number
   setPage: (updater: (current: number) => number) => void
   pageCount: number
   pageSize: number
@@ -47,7 +46,7 @@ interface Props {
   empty: Record<string, unknown>
 }
 
-export function LeadPipeline({ filtered, sorted, paged, safePage, page, setPage, pageCount, pageSize, query, setQuery, status, setStatus, source, setSource, sources, stages, tone, sortBy, move, today, money, contactAction, openActivity, edit, remove, setForm, setModal, empty }: Props) {
+export function LeadPipeline({ filtered, sorted, paged, safePage, setPage, pageCount, pageSize, query, setQuery, status, setStatus, source, setSource, sources, stages, tone, sortBy, move, today, money, contactAction, openActivity, edit, remove, setForm, setModal, empty }: Props) {
   return (
     <section className="panel pipelinePanel" id="leads" aria-labelledby="pipeline-heading">
       <div className="panelHead panelHeadStack">

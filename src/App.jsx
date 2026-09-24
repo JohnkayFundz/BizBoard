@@ -176,7 +176,18 @@ function outreachTemplate(l,channel){
    const r=await supabase.functions.invoke('analyze-website',{body:{url:intelUrl.trim()}})
    if(r.error||!r.data?.success){notify(r.data?.error||r.error?.message||'Website analysis failed');return}
    const nextChecks=r.data.checks||{mobile:false,cta:false,contact:false,ecommerce:false,seo:false}
-   setIntelChecks(nextChecks);setIntelResult(r.data);setProposalAnalyses(x=>({...x,[intelLead.id]:r.data}));buildIntelligenceReport(r.data,nextChecks);await saveIntelligenceReport(r.data,nextChecks);const historyNote='Website opportunity report saved. Score: '+r.data.score+'/5. Recommended service: '+r.data.recommended_service+'. Estimated value: '+money(r.data.estimated_value)+'. '+cleanText((r.data.opportunities||[]).join(' '),1500);const h=await supabase.from('crm_lead_activity').insert({lead_id:intelLead.id,activity_type:'Note',note:historyNote}).select().single();if(h.error)notify('Analysis complete, but history save failed: '+h.error.message);notify('Website analyzed successfully · report saved to lead history')
+   setIntelChecks(nextChecks);setIntelResult(r.data);setProposalAnalyses(x=>({...x,[intelLead.id]:r.data}));buildIntelligenceReport(r.data,nextChecks);
+   const normalizedUrl=normalizeWebsiteUrl(r.data.url||intelUrl);
+   if(normalizedUrl&&normalizedUrl!==intelLead.website){
+    const savedLead=await supabase.from('crm_leads').update({website:normalizedUrl,updated_at:new Date().toISOString()}).eq('id',intelLead.id).select().single();
+    if(savedLead.error){notify('Analysis completed, but the website could not be saved to the lead: '+savedLead.error.message);return}
+    setLeads(x=>x.map(a=>a.id===savedLead.data.id?savedLead.data:a));setIntelLead(savedLead.data);setIntelUrl(normalizedUrl);
+   }
+   const savedReport=await saveIntelligenceReport(r.data,nextChecks);
+   const historyNote='Website opportunity report saved. Score: '+r.data.score+'/5. Recommended service: '+r.data.recommended_service+'. Estimated value: '+money(r.data.estimated_value)+'. '+cleanText((r.data.opportunities||[]).join(' '),1500);
+   const h=await supabase.from('crm_lead_activity').insert({lead_id:intelLead.id,activity_type:'Note',note:historyNote}).select().single();
+   if(h.error)notify('Analysis complete, but history logging failed: '+h.error.message);
+   notify(savedReport?'Website analyzed · URL saved to lead · report saved to history':'Website analyzed · URL saved to lead')
   }catch(error){notify(error instanceof Error?error.message:'Website analysis failed')}
   finally{setIntelAnalyzing(false)}
  }

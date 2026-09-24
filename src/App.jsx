@@ -3,6 +3,8 @@ import { createClient } from '@supabase/supabase-js'
 import { BarChart3, Bell, BriefcaseBusiness, Check, ChevronDown, Copy, ExternalLink, Filter, LogOut, Plus, RefreshCw, Search, Target, Trash2, Users, X, ArrowUpDown, ChevronLeft, ChevronRight, FileDown } from 'lucide-react'
 import { leadSchema, intelligenceSchema, proposalSchema, cleanText } from './lib/validation'
 import { assessIntelligence, normalizeWebsiteUrl } from './utils/intelligence'
+import type { IntelligenceReport, IntelligenceChecklist, RecommendedService } from './types/intelligence'
+import { downloadProposalPdf } from './utils/pdfGenerator'
 import { Metric, Select, FollowupCard } from './components/Ui'
 import { LeadIntelligence } from './components/LeadIntelligence'
 import { DashboardSummary } from './components/DashboardSummary'
@@ -30,11 +32,45 @@ export default function App(){
  const [activityLead,setActivityLead]=useState(null),[activities,setActivities]=useState([]),[activityType,setActivityType]=useState('Note'),[activityNote,setActivityNote]=useState(''),[activityFollowUp,setActivityFollowUp]=useState(''),[activityLoading,setActivityLoading]=useState(false),[activitySaving,setActivitySaving]=useState(false),[completingFollowUp,setCompletingFollowUp]=useState(false),[followUpMethod,setFollowUpMethod]=useState('Call'),[followUpOutcome,setFollowUpOutcome]=useState('Needs follow-up'),[followUpNote,setFollowUpNote]=useState(''),[followUpNextDate,setFollowUpNextDate]=useState('')
  const [outreachLead,setOutreachLead]=useState(null),[outreachChannel,setOutreachChannel]=useState('Email'),[outreachMessage,setOutreachMessage]=useState(''),[outreachCopied,setOutreachCopied]=useState(false),[outreachSending,setOutreachSending]=useState(false)
  const [intelLead,setIntelLead]=useState(null),[intelUrl,setIntelUrl]=useState(''),[intelChecks,setIntelChecks]=useState({mobile:false,cta:false,contact:false,ecommerce:false,seo:false}),[intelReport,setIntelReport]=useState(''),[intelCopied,setIntelCopied]=useState(false),[intelAnalyzing,setIntelAnalyzing]=useState(false),[intelResult,setIntelResult]=useState(null)
- const [proposalLead,setProposalLead]=useState(null),[proposalService,setProposalService]=useState('Business Website'),[proposalPrice,setProposalPrice]=useState('150000'),[proposalTimeline,setProposalTimeline]=useState('7–10 business days'),[proposalTaxRate,setProposalTaxRate]=useState('0'),[proposalText,setProposalText]=useState(''),[proposalCopied,setProposalCopied]=useState(false),[proposalAnalyses,setProposalAnalyses]=useState({}),[proposalTracking,setProposalTracking]=useState(false),[proposalPdfBusy,setProposalPdfBusy]=useState(false)
+ const [proposalLead,setProposalLead]=useState(null),[proposalService,setProposalService]=useState('Business Website'),[proposalPrice,setProposalPrice]=useState('150000'),[proposalTimeline,setProposalTimeline]=useState('7–10 business days'),[proposalTaxRate,setProposalTaxRate]=useState('0'),[proposalText,setProposalText]=useState(''),[proposalCopied,setProposalCopied]=useState(false),[proposalAnalyses,setProposalAnalyses]=useState({}),[proposalTracking,setProposalTracking]=useState(false),[proposalPdfBusy,setProposalPdfBusy]=useState(false),[intelligenceHistory,setIntelligenceHistory]=useState([]),[proposalOpportunity,setProposalOpportunity]=useState(null)
 
  useEffect(()=>{if(!supabase){setLoading(false);return} supabase.auth.getSession().then(({data})=>{setSession(data.session);setLoading(false)});const {data:{subscription}}=supabase.auth.onAuthStateChange((_e,s)=>setSession(s));return()=>subscription.unsubscribe()},[])
  useEffect(()=>{if(!session)return;load();const channel=supabase.channel('crm-live').on('postgres_changes',{event:'*',schema:'public',table:'crm_leads'},()=>load()).subscribe();return()=>{supabase.removeChannel(channel)}},[session])
+ useEffect(()=>{if(!session||!intelLead?.id)return;loadIntelligenceHistory(intelLead.id)},[session,intelLead?.id])
  async function load(){const {data,error}=await supabase.from('crm_leads').select('*').order('updated_at',{ascending:false});if(error)notify(error.message);else setLeads(data||[])}
+ async function loadIntelligenceHistory(leadId){
+  const {data,error}=await supabase.from('crm_intelligence_reports').select('*').eq('lead_id',leadId).order('created_at',{ascending:false}).limit(20)
+  if(error){notify(error.message);return}
+  setIntelligenceHistory((data||[]).map(r=>({id:r.id,leadId:r.lead_id,websiteUrl:r.website_url,score:r.score,checklist:r.checklist,keyFindings:r.key_findings,keyOpportunities:r.key_opportunities,recommendedService:r.recommended_service,estimatedValue:Number(r.estimated_value||0),reportType:r.report_type,createdAt:r.created_at})))
+ }
+ async function saveIntelligenceReport(result=null, checks=intelChecks){
+  if(!intelLead)return null
+  const assessment=assessIntelligence(checks,Boolean(intelLead.website||intelUrl.trim()))
+  const report={lead_id:intelLead.id,website_url:intelUrl.trim()||intelLead.website||null,score:Number(result?.score??assessment.score),checklist:checks,key_findings:result?.findings||[],key_opportunities:result?.opportunities||[],recommended_service:(result?.recommended_service||assessment.recommendedService),estimated_value:Number(result?.estimated_value??assessment.estimatedValue),report_type:(intelLead.website||intelUrl.trim()?'audit':'new_website')}
+  const {data,error}=await supabase.from('crm_intelligence_reports').insert(report).select().single()
+  if(error){notify('Report generated, but history save failed: '+error.message);return null}
+  const mapped={id:data.id,leadId:data.lead_id,websiteUrl:data.website_url,score:data.score,checklist:data.checklist,keyFindings:data.key_findings,keyOpportunities:data.key_opportunities,recommendedService:data.recommended_service,estimatedValue:Number(data.estimated_value||0),reportType:data.report_type,createdAt:data.created_at}
+  setIntelligenceHistory(x=>[mapped,...x.filter(r=>r.id!==mapped.id)])
+  return mapped
+ }
+ function applyIntelligenceReport(report){
+  if(!report)return
+  setIntelChecks(report.checklist);setIntelUrl(report.websiteUrl||'');setIntelReport('')
+  setIntelResult({score:report.score,checks:report.checklist,findings:report.keyFindings,opportunities:report.keyOpportunities,recommended_service:report.recommendedService,estimated_value:report.estimatedValue})
+  setProposalAnalyses(x=>({...x,[report.leadId]:{score:report.score,checks:report.checklist,findings:report.keyFindings,opportunities:report.keyOpportunities,recommended_service:report.recommendedService,estimated_value:report.estimatedValue}}))
+  buildIntelligenceReport({score:report.score,findings:report.keyFindings,opportunities:report.keyOpportunities,recommended_service:report.recommendedService,estimated_value:report.estimatedValue},report.checklist)
+  notify('Intelligence report restored')
+ }
+ async function generateProposalFromOpportunity(report){
+  if(!report||!intelLead)return
+  const saved=report.id?report:await saveIntelligenceReport(null,report.checklist)
+  if(!saved)return
+  setProposalLead(intelLead);setProposalOpportunity(saved);setProposalService(saved.recommendedService);setProposalPrice(String(saved.estimatedValue));setProposalTaxRate('0');setProposalTimeline(saved.recommendedService==='E-commerce Website'?'10–14 business days':saved.recommendedService==='Custom Web Application'?'14–21 business days':'7–10 business days')
+  setProposalText('');setProposalCopied(false)
+  document.getElementById('proposal')?.scrollIntoView({behavior:'smooth',block:'start'})
+  notify('Proposal pre-filled from opportunity report')
+ }
+
  async function openActivity(l){setActivityLead(l);setActivityNote('');setActivityType('Note');setActivityLoading(true);const {data,error}=await supabase.from('crm_lead_activity').select('*').eq('lead_id',l.id).order('created_at',{ascending:false});if(error)notify(error.message);else setActivities(data||[]);setActivityLoading(false)}
  async function addActivity(e){e.preventDefault();if(!activityLead||!activityNote.trim())return;setActivitySaving(true);const r=await supabase.from('crm_lead_activity').insert({lead_id:activityLead.id,activity_type:activityType,note:activityNote.trim()}).select().single();if(r.error)notify(r.error.message);else{let followUpUpdated=false;if(activityFollowUp){const u=await supabase.from('crm_leads').update({next_follow_up:activityFollowUp,updated_at:new Date().toISOString()}).eq('id',activityLead.id).select().single();if(u.error)notify(u.error.message);else{setLeads(x=>x.map(a=>a.id===activityLead.id?u.data:a));setActivityLead(u.data);followUpUpdated=true}}setActivities(x=>[r.data,...x]);setActivityNote('');setActivityFollowUp('');notify(followUpUpdated?'Activity added · next follow-up scheduled':'Activity added')}setActivitySaving(false)}
  async function completeFollowUp(){
@@ -124,7 +160,7 @@ function outreachTemplate(l,channel){
   const report=[reportTitle,'','Business: '+(intelLead.company||'Prospect'),'Contact: '+(intelLead.contact_name||'Not provided'),'Industry: '+(intelLead.niche||'Business'),'Location: '+(intelLead.location||'Not provided'),'Website: '+(intelUrl||intelLead.website||'Not provided'),result?.title?'Page title: '+result.title:'',result?.response_ms?'Server response time: '+result.response_ms+' ms':'','', 'OPPORTUNITY SCORE: '+score+'/5','','CHECKLIST',...rows.map(x=>(x[1]?'✓':'○')+' '+x[0]),'','KEY FINDINGS',...(result?.findings||[]).map(x=>'• '+x),(hasWebsite?'':'• No existing website was provided; this assessment is for a new website opportunity.'),'','KEY OPPORTUNITIES',...opportunities,'','RECOMMENDED SERVICE: '+service,'ESTIMATED PROJECT VALUE: '+value,'','Prepared by JohnKay Fundz'].filter(Boolean).join('\\n')
   setIntelReport(report)
  }
- function generateIntelligence(){buildIntelligenceReport(null)}
+ async function generateIntelligence(){buildIntelligenceReport(null);await saveIntelligenceReport(null,intelChecks)}
  async function saveLeadWebsite(){
   if(!intelLead||!intelUrl.trim())return
   let website=''
@@ -141,7 +177,7 @@ function outreachTemplate(l,channel){
    const r=await supabase.functions.invoke('analyze-website',{body:{url:intelUrl.trim()}})
    if(r.error||!r.data?.success){notify(r.data?.error||r.error?.message||'Website analysis failed');return}
    const nextChecks=r.data.checks||{mobile:false,cta:false,contact:false,ecommerce:false,seo:false}
-   setIntelChecks(nextChecks);setIntelResult(r.data);setProposalAnalyses(x=>({...x,[intelLead.id]:r.data}));buildIntelligenceReport(r.data,nextChecks);const historyNote='Website opportunity report saved. Score: '+r.data.score+'/5. Recommended service: '+r.data.recommended_service+'. Estimated value: '+money(r.data.estimated_value)+'. '+cleanText((r.data.opportunities||[]).join(' '),1500);const h=await supabase.from('crm_lead_activity').insert({lead_id:intelLead.id,activity_type:'Note',note:historyNote}).select().single();if(h.error)notify('Analysis complete, but history save failed: '+h.error.message);notify('Website analyzed successfully · report saved to lead history')
+   setIntelChecks(nextChecks);setIntelResult(r.data);setProposalAnalyses(x=>({...x,[intelLead.id]:r.data}));buildIntelligenceReport(r.data,nextChecks);await saveIntelligenceReport(r.data,nextChecks);const historyNote='Website opportunity report saved. Score: '+r.data.score+'/5. Recommended service: '+r.data.recommended_service+'. Estimated value: '+money(r.data.estimated_value)+'. '+cleanText((r.data.opportunities||[]).join(' '),1500);const h=await supabase.from('crm_lead_activity').insert({lead_id:intelLead.id,activity_type:'Note',note:historyNote}).select().single();if(h.error)notify('Analysis complete, but history save failed: '+h.error.message);notify('Website analyzed successfully · report saved to lead history')
   }catch(error){notify(error instanceof Error?error.message:'Website analysis failed')}
   finally{setIntelAnalyzing(false)}
  }
@@ -161,7 +197,7 @@ function outreachTemplate(l,channel){
   const company=(l.company||'your business').replace(/\s*[—-]\s*Website\s*$/i,'')
   const analysis=proposalAnalyses[l?.id]||(intelResult&&intelLead?.id===l.id?intelResult:null)
   const findings=analysis?.findings||[]
-  const opportunities=analysis?.opportunities||[]
+  const opportunities=proposalOpportunity?.leadId===l.id?proposalOpportunity.keyOpportunities:(analysis?.opportunities||[])
   const deliverables=service==='E-commerce Website'?['Responsive product-focused storefront','Product/category pages and clear calls to action','Mobile-first shopping experience','Contact/order flow and conversion improvements','Basic SEO-ready page structure']:service==='Website Redesign'?['Modern responsive redesign','Improved navigation and conversion flow','Mobile experience improvements','Clear contact and call-to-action sections','Basic SEO-ready page structure']:service==='Custom Web Application'?['Responsive application interface','Core workflow and dashboard screens','Frontend integration and validation','Deployment-ready production build','Handover and basic usage guidance']:['Modern responsive business website','Professional homepage and service/product sections','Mobile-first layout and clear calls to action','Contact/inquiry integration','Basic SEO-ready page structure']
   const lines=['WEBSITE PROJECT PROPOSAL','','Prepared for: '+company,'Contact: '+(l.contact_name||'Not provided'),'Prepared by: John Kalumba — JohnKay Fundz','','PROJECT OVERVIEW',`I propose building or improving ${company}'s online presence with ${/^[aeiou]/i.test(service) ? 'an' : 'a'} ${service.toLowerCase()} focused on a professional mobile experience, clear customer journeys, and stronger conversion opportunities.`, '', 'RECOMMENDED SOLUTION',service,'', 'KEY OPPORTUNITIES',...(opportunities.length?opportunities.map(x=>'• '+x):['• Improve the website experience and conversion path']),...(findings.length?['','ANALYSIS FINDINGS',...findings.map(x=>'• '+x)]:[]),'','DELIVERABLES',...deliverables.map(x=>'• '+x),'','TIMELINE',timeline,'','INVESTMENT',money(investment),'','TAX ('+taxRate+'%)',money(tax),'','TOTAL CLIENT INVESTMENT',money(total),'','MILESTONE PAYMENTS',...milestones.map(m=>m.percent+'% · '+m.label+' · '+money(m.amount)),'','NEXT STEPS','1. Confirm the scope and required content.','2. Provide the business information, images and other assets needed for the build.','3. Approve the project start and payment arrangement.','4. Development, review and final delivery.','','Thank you for considering JohnKay Fundz. I’d be happy to discuss the project and tailor the scope to your exact needs.','','John Kalumba','JohnKay Fundz'].join('\\n')
   setProposalText(lines)
@@ -173,7 +209,7 @@ function outreachTemplate(l,channel){
  a.href=url;a.download=(proposalLead?.company||'johnkay-proposal').replace(/[^a-z0-9]+/gi,'-').toLowerCase()+'.md'
  document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);notify('Markdown proposal downloaded')
 }
-async function printProposal(){if(!proposalText)return;setProposalPdfBusy(true);try{const win=window.open('','_blank','noopener,noreferrer');if(!win){notify('Allow pop-ups to export the proposal');return}const html=proposalText.split('\n').map(line=>line?'<p>'+line.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</p>':'<br/>').join('');win.document.write('<!doctype html><html><head><title>JohnKay Fundz Proposal</title><style>body{font-family:Inter,Arial,sans-serif;max-width:760px;margin:40px auto;padding:0 24px;color:#111;line-height:1.55}p{white-space:pre-wrap}@media print{body{margin:0 auto}}</style></head><body>'+html+'</body></html>');win.document.close();win.focus();setTimeout(()=>win.print(),250);notify('Proposal ready — choose Save as PDF in the print dialog')}finally{setProposalPdfBusy(false)}}
+async function printProposal(){if(!proposalLead||!proposalText||proposalPdfBusy)return;setProposalPdfBusy(true);try{const analysis=proposalAnalyses[proposalLead.id]||(intelResult&&intelLead?.id===proposalLead.id?intelResult:null);const investment=Number(proposalPrice||0);const taxRate=Number(proposalTaxRate||0);const tax=investment*taxRate/100;const total=investment+tax;const service=proposalService;const opportunities=proposalOpportunity?.leadId===proposalLead.id?proposalOpportunity.keyOpportunities:(analysis?.opportunities||[]);const findings=analysis?.findings||[];const deliverables=service==='E-commerce Website'?['Responsive product-focused storefront','Product/category pages and clear calls to action','Mobile-first shopping experience','Contact/order flow and conversion improvements','Basic SEO-ready page structure']:service==='Website Redesign'?['Modern responsive redesign','Improved navigation and conversion flow','Mobile experience improvements','Clear contact and call-to-action sections','Basic SEO-ready page structure']:service==='Custom Web Application'?['Responsive application interface','Core workflow and dashboard screens','Frontend integration and validation','Deployment-ready production build','Handover and basic usage guidance']:['Modern responsive business website','Professional homepage and service/product sections','Mobile-first layout and clear calls to action','Contact/inquiry integration','Basic SEO-ready page structure'];await downloadProposalPdf({company:(proposalLead.company||'your business').replace(/\\s*[—-]\\s*Website\\s*$/i,''),contact:proposalLead.contact_name,service,timeline:proposalTimeline,investment,taxRate,tax,total,opportunities,findings,deliverables});notify('Branded PDF downloaded')}catch(error){notify(error instanceof Error?error.message:'PDF export failed')}finally{setProposalPdfBusy(false)}}
 function generateProposal(){buildProposal()}
  async function copyProposal(){if(!proposalText)return;try{await navigator.clipboard.writeText(proposalText);setProposalCopied(true);notify('Proposal copied');setTimeout(()=>setProposalCopied(false),1800)}catch{notify('Copy failed — select the proposal and copy it manually')}}
  async function markProposalSent(){

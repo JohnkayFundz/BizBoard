@@ -154,7 +154,6 @@ function outreachTemplate(l,channel){
   const score=result?.score ?? (hasWebsite?assessment.score:5)
   const service=result?.recommended_service || assessment.recommendedService
   const value=result?.estimated_value ? money(result.estimated_value) : money(assessment.estimatedValue)
-  const hasWebsite=Boolean(intelLead.website||intelUrl.trim())
   const gaps=rows.filter(x=>!x[1]).map(x=>x[0])
   const company=(intelLead.company||'Prospect').replace(/\s*[—-]\s*Website\s*$/i,'')
   const industry=intelLead.niche||'Business'

@@ -211,7 +211,18 @@ function outreachTemplate(l,channel){
  document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);notify('Markdown proposal downloaded')
 }
 async function printProposal(){if(!proposalLead||!proposalText||proposalPdfBusy)return;setProposalPdfBusy(true);try{const analysis=proposalAnalyses[proposalLead.id]||(intelResult&&intelLead?.id===proposalLead.id?intelResult:null);const investment=Number(proposalPrice||0);const taxRate=Number(proposalTaxRate||0);const tax=investment*taxRate/100;const total=investment+tax;const service=proposalService;const opportunities=proposalOpportunity?.leadId===proposalLead.id?proposalOpportunity.keyOpportunities:(analysis?.opportunities||[]);const findings=analysis?.findings||[];const deliverables=service==='E-commerce Website'?['Responsive product-focused storefront','Product/category pages and clear calls to action','Mobile-first shopping experience','Contact/order flow and conversion improvements','Basic SEO-ready page structure']:service==='Website Redesign'?['Modern responsive redesign','Improved navigation and conversion flow','Mobile experience improvements','Clear contact and call-to-action sections','Basic SEO-ready page structure']:service==='Custom Web Application'?['Responsive application interface','Core workflow and dashboard screens','Frontend integration and validation','Deployment-ready production build','Handover and basic usage guidance']:['Modern responsive business website','Professional homepage and service/product sections','Mobile-first layout and clear calls to action','Contact/inquiry integration','Basic SEO-ready page structure'];await downloadProposalPdf({company:(proposalLead.company||'your business').replace(/\\s*[—-]\\s*Website\\s*$/i,''),contact:proposalLead.contact_name,service,timeline:proposalTimeline,investment,taxRate,tax,total,opportunities,findings,deliverables});notify('Branded PDF downloaded')}catch(error){notify(error instanceof Error?error.message:'PDF export failed')}finally{setProposalPdfBusy(false)}}
-function generateProposal(){buildProposal()}
+async function generateProposal(){
+  buildProposal()
+  if(proposalLead){
+    const count=proposalOpportunity?.keyOpportunities?.length||0
+    const note=proposalOpportunity
+      ? 'Proposal generated from intelligence opportunity. Score: '+proposalOpportunity.score+'/5. Opportunities loaded: '+count+'. Service: '+proposalService+'. Investment: '+money(Number(proposalPrice||0))+'.'
+      : 'Proposal generated. Service: '+proposalService+'. Investment: '+money(Number(proposalPrice||0))+'.'
+    const a=await supabase.from('crm_lead_activity').insert({lead_id:proposalLead.id,activity_type:'Note',note}).select().single()
+    if(a.error)notify('Proposal generated, but activity logging failed')
+    else if(activityLead?.id===proposalLead.id)setActivities(x=>[a.data,...x])
+  }
+}
  async function copyProposal(){if(!proposalText)return;try{await navigator.clipboard.writeText(proposalText);setProposalCopied(true);notify('Proposal copied');setTimeout(()=>setProposalCopied(false),1800)}catch{notify('Copy failed — select the proposal and copy it manually')}}
  async function markProposalSent(){
   if(!proposalLead||!proposalText||proposalTracking)return

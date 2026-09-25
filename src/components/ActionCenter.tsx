@@ -1,4 +1,5 @@
 import { Bell, CalendarClock, CheckCircle2, MessageSquare, Target, TrendingUp } from 'lucide-react'
+import { calculateLeadScore } from '../utils/leadScoring'
 
 type Lead = {
   id: string | number
@@ -8,6 +9,11 @@ type Lead = {
   email?: string | null
   instagram?: string | null
   phone?: string | null
+  website?: string | null
+  niche?: string | null
+  deal_value?: number | string | null
+  score?: number | null
+  score_tier?: string | null
 }
 
 type Metrics = {
@@ -38,16 +44,20 @@ type ActionCenterProps = {
 export function ActionCenter({ leads, metrics, followUps, openActivity, openOutreach, setForm, setModal, empty, money }: ActionCenterProps) {
   const overdue: Lead[] = followUps?.overdue || []
   const today: Lead[] = followUps?.today || []
-  const priority = [
-    ...overdue.map(lead => ({ lead, label: 'Overdue follow-up', tone: 'danger' })),
-    ...today.map(lead => ({ lead, label: 'Due today', tone: 'warning' })),
-    ...leads.filter(lead => ['Interested', 'Proposal Sent'].includes(lead.status || '')).map(lead => ({
-      lead,
-      label: lead.status === 'Proposal Sent' ? 'Proposal follow-up' : 'Interested lead',
-      tone: 'success'
-    })),
-    ...leads.filter(lead => lead.status === 'New Lead').map(lead => ({ lead, label: 'New lead to contact', tone: 'neutral' }))
-  ].filter((item, index, list) => list.findIndex(other => other.lead.id === item.lead.id) === index).slice(0, 4)
+  const activeNeedingAction = leads
+    .filter(lead => !['Won', 'Lost'].includes(lead.status || 'New Lead'))
+    .filter(lead => ['New Lead', 'Contacted', 'Replied', 'Interested', 'Proposal Sent'].includes(lead.status || 'New Lead'))
+    .map(lead => ({ lead, score: lead.score ?? calculateLeadScore(lead).score, tier: lead.score_tier || calculateLeadScore(lead).scoreTier }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3)
+
+  const priority = activeNeedingAction.map(({ lead, score, tier }) => ({
+    lead,
+    score,
+    tier,
+    label: lead.next_follow_up ? (lead.next_follow_up <= new Date().toISOString().slice(0, 10) ? 'Follow-up due' : 'Follow-up scheduled') : lead.status === 'Proposal Sent' ? 'Proposal follow-up' : lead.status === 'Interested' ? 'Interested lead' : 'Outreach needed',
+    tone: tier === 'Hot' ? 'danger' : tier === 'Warm' ? 'warning' : 'neutral'
+  }))
 
   const actionCount = overdue.length + today.length
   const pipelineValue = Number(metrics?.pipeline || 0)
@@ -60,7 +70,7 @@ export function ActionCenter({ leads, metrics, followUps, openActivity, openOutr
           <h2>Next best actions</h2>
           <p>Keep the sales workflow moving without guessing what to do next.</p>
         </div>
-        <span className="panelBadge"><Target /> {priority.length ? `${priority.length} priorities` : 'All clear'}</span>
+        <span className="panelBadge"><Target /> {priority.length ? `Top ${priority.length} by score` : 'All clear'}</span>
       </div>
 
       <div className="actionStats">
@@ -73,10 +83,10 @@ export function ActionCenter({ leads, metrics, followUps, openActivity, openOutr
         <div className="actionList">
           {priority.length ? priority.map(({ lead, label, tone }) => (
             <div className={`actionItem action-${tone}`} key={lead.id}>
-              <div className="actionIcon">{label.includes('follow-up') || label.includes('Due') ? <CalendarClock /> : <MessageSquare />}</div>
+              <div className="actionScore"><span className={`scoreBadge score-${tier.toLowerCase()}`}>{tier==='Hot'?'🔥':tier==='Warm'?'⚡':'❄️'} <b>{score}</b></span></div><div className="actionIcon">{label.includes('follow-up') || label.includes('Due') ? <CalendarClock /> : <MessageSquare />}</div>
               <div className="actionMain">
                 <strong>{(lead.company || 'Unnamed lead').replace(/\\s*[—-]\\s*Website\\s*$/i, '')}</strong>
-                <small>{label}{lead.next_follow_up ? ` · ${lead.next_follow_up}` : ''}</small>
+                <small>{label}{lead.next_follow_up ? ` · ${lead.next_follow_up}` : ''} · Score {score}</small>
               </div>
               <div className="actionButtons">
                 <button className="secondary" onClick={() => openActivity(lead)}>Activity</button>

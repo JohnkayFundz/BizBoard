@@ -6,7 +6,8 @@ import { Metric } from '../components/Ui'
 import { LeadPipeline } from '../components/LeadPipeline'
 import { ActionCenter } from '../components/ActionCenter'
 import { assessIntelligence } from '../utils/intelligence'
-import { calculatePipelineMetrics, findPotentialDuplicateLeads } from '../utils/pipeline'
+import { calculatePipelineMetrics, findPotentialDuplicateLeads, findLeadDuplicate } from '../utils/pipeline'
+import { calculateLeadScore } from '../utils/leadScoring'
 import { buildMailtoUrl, buildWhatsAppUrl, buildInstagramInboxUrl, normalizeWhatsAppPhone } from '../utils/outreach'
 
 describe('premium UI primitives', () => {
@@ -67,6 +68,23 @@ describe('premium UI primitives', () => {
 
     expect(duplicates).toHaveLength(1)
     expect(duplicates[0].ids).toEqual([1, 2])
+  })
+
+  it('calculates a bounded hot lead score from the requested qualification signals', () => {
+    expect(calculateLeadScore({
+      website: '',
+      email: 'owner@example.com',
+      niche: 'Real Estate',
+      deal_value: 150000,
+      status: 'Interested',
+    })).toEqual({ score: 100, scoreTier: 'Hot' })
+    expect(calculateLeadScore({ website: 'example.com', niche: 'Local Shop', status: 'New Lead' })).toEqual({ score: 0, scoreTier: 'Cold' })
+  })
+
+  it('detects duplicates by normalized website or company and contact name', () => {
+    const leads = [{ id: 1, company: 'Acme Ltd', contact_name: 'Jane Doe', website: 'https://example.com/' }]
+    expect(findLeadDuplicate(leads, { company: 'Other', contact_name: 'Owner', website: 'example.com' })).toEqual({ reason: 'website', leadId: 1 })
+    expect(findLeadDuplicate(leads, { company: 'ACME LTD', contact_name: 'jane doe', website: '' })).toEqual({ reason: 'company_contact', leadId: 1 })
   })
 
   it('builds encoded outreach deep links and normalizes Nigerian phone numbers', () => {

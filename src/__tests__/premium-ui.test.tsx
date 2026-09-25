@@ -119,6 +119,7 @@ describe('premium UI primitives', () => {
           stages={['New Lead', 'Contacted', 'Interested']}
           tone={{ Interested: 'amber' }}
           sortBy={() => {}}
+          sortKey="updated_at"
           move={() => {}}
           today={() => '2026-09-24'}
           money={() => '₦250,000'}

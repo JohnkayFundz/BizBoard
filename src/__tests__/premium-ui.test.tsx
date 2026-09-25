@@ -8,6 +8,7 @@ import { ActionCenter } from '../components/ActionCenter'
 import { assessIntelligence } from '../utils/intelligence'
 import { calculatePipelineMetrics, findPotentialDuplicateLeads, findLeadDuplicate } from '../utils/pipeline'
 import { calculateLeadScore } from '../utils/leadScoring'
+import { OutreachCampaignModal } from '../components/OutreachCampaignModal'
 import { buildMailtoUrl, buildWhatsAppUrl, buildInstagramInboxUrl, normalizeWhatsAppPhone } from '../utils/outreach'
 
 describe('premium UI primitives', () => {
@@ -70,6 +71,14 @@ describe('premium UI primitives', () => {
     expect(duplicates[0].ids).toEqual([1, 2])
   })
 
+  it('renders the outreach campaign queue with channel actions', () => {
+    render(<OutreachCampaignModal open leads={[{id:1,company:'Acme — Website',contact_name:'Jane Doe',email:'jane@example.com',phone:'08000000000',instagram:'@acme',status:'New Lead'}]} index={0} setIndex={() => {}} channel="Email" setChannel={() => {}} message="Hi Jane" setMessage={() => {}} copied={false} copyMessage={() => {}} dispatch={() => {}} close={() => {}} />)
+    expect(screen.getByText('Lead 1 of 1')).toBeInTheDocument()
+    expect(screen.getByText('Open Email Client')).toBeInTheDocument()
+    expect(screen.getByText('Instagram')).toBeInTheDocument()
+    expect(screen.getByText('WhatsApp')).toBeInTheDocument()
+  })
+
   it('calculates a bounded hot lead score from the requested qualification signals', () => {
     expect(calculateLeadScore({
       website: '',
@@ -130,6 +139,9 @@ describe('premium UI primitives', () => {
           setForm={() => {}}
           setModal={() => {}}
           empty={{}}
+          selectedIds={[]}
+          setSelectedIds={() => {}}
+          onGenerateCampaign={() => {}}
         />
       )
     }

@@ -47,6 +47,9 @@ interface Props {
   remove: (id: string | number) => void
   setForm: (value: Record<string, unknown>) => void
   setModal: (value: boolean) => void
+  selectedIds: Array<string | number>
+  setSelectedIds: (ids: Array<string | number>) => void
+  onGenerateCampaign: () => void
   empty: Record<string, unknown>
 }
 
@@ -109,7 +112,7 @@ export function LeadPipeline({ filtered, sorted, paged, safePage, setPage, pageC
                 </tr>
               )
             })}
-            {!filtered.length && <tr><td colSpan={7}><div className="empty">{hasFilters?<><Search/><strong>No matching leads</strong><span>Try a different search term or clear one of the pipeline filters.</span><button className="secondary" onClick={() => { setQuery(''); setStatus('All'); setSource('All') }}>Clear filters</button></>:<><Users/><strong>No leads yet</strong><span>Add your first prospect and start tracking the conversation.</span><button className="primary" onClick={() => { setForm({ ...empty }); setModal(true) }}><Plus />Add first lead</button></>}</div></td></tr>}
+            {!filtered.length && <tr><td colSpan={8}><div className="empty">{hasFilters?<><Search/><strong>No matching leads</strong><span>Try a different search term or clear one of the pipeline filters.</span><button className="secondary" onClick={() => { setQuery(''); setStatus('All'); setSource('All') }}>Clear filters</button></>:<><Users/><strong>No leads yet</strong><span>Add your first prospect and start tracking the conversation.</span><button className="primary" onClick={() => { setForm({ ...empty }); setModal(true) }}><Plus />Add first lead</button></>}</div></td></tr>}
           </tbody>
         </table>
       </div>

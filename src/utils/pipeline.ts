@@ -62,6 +62,10 @@ export function findPotentialDuplicateLeads(leads: PipelineLead[]): DuplicateGro
   }
 
   for (const lead of leads) {
+    // Duplicate groups must contain real lead IDs. Leads without an ID cannot
+    // be safely referenced or merged, so skip them during identity grouping.
+    if (lead.id === undefined || lead.id === null) continue
+
     const identityKeys = [
       normalizedEmail(lead.email) ? `email:${normalizedEmail(lead.email)}` : '',
       normalize(lead.phone) ? `phone:${normalize(lead.phone)}` : '',

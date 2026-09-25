@@ -1,5 +1,6 @@
 import { Search, Filter, ArrowUpDown, ChevronDown, ChevronLeft, ChevronRight, Plus, Users, Trash2, Mail, Phone, Instagram, Globe2, MessageCircle, History, Pencil } from 'lucide-react'
 import { Select } from './Ui'
+import { calculateLeadScore } from '../utils/leadScoring'
 
 interface Lead {
   id: string | number
@@ -14,6 +15,8 @@ interface Lead {
   phone?: string | null
   instagram?: string | null
   website?: string | null
+  score?: number | null
+  score_tier?: string | null
 }
 
 interface Props {
@@ -34,6 +37,7 @@ interface Props {
   stages: string[]
   tone: Record<string, string>
   sortBy: (key: string) => void
+  sortKey: string
   move: (lead: Lead, stage: string) => void
   today: () => string
   money: (value: number | string | null | undefined) => string
@@ -46,7 +50,7 @@ interface Props {
   empty: Record<string, unknown>
 }
 
-export function LeadPipeline({ filtered, sorted, paged, safePage, setPage, pageCount, pageSize, query, setQuery, status, setStatus, source, setSource, sources, stages, tone, sortBy, move, today, money, contactAction, openActivity, edit, remove, setForm, setModal, empty }: Props) {
+export function LeadPipeline({ filtered, sorted, paged, safePage, setPage, pageCount, pageSize, query, setQuery, status, setStatus, source, setSource, sources, stages, tone, sortBy, sortKey, move, today, money, contactAction, openActivity, edit, remove, setForm, setModal, empty }: Props) {
   const hasFilters = Boolean(query.trim() || status !== 'All' || source !== 'All')
   return (
     <section className="panel pipelinePanel" id="leads" aria-labelledby="pipeline-heading">
@@ -63,6 +67,7 @@ export function LeadPipeline({ filtered, sorted, paged, safePage, setPage, pageC
         </label>
         <Select icon={<Filter />} value={status} set={setStatus} options={['All', ...stages]} ariaLabel="Filter by stage" />
         <Select value={source} set={setSource} options={['All', ...sources]} ariaLabel="Filter by source" />
+        <Select value={sortKey === 'score' ? 'Lead score (High → Low)' : 'Latest updated'} set={value => sortBy(value === 'Lead score (High → Low)' ? 'score' : 'updated_at')} options={['Latest updated', 'Lead score (High → Low)']} ariaLabel="Sort leads" />
       </div>
 
       <div className="table">
@@ -70,6 +75,7 @@ export function LeadPipeline({ filtered, sorted, paged, safePage, setPage, pageC
           <thead><tr>
             <th><button className="sortHead" onClick={() => sortBy('company')}>Lead <ArrowUpDown /></button></th>
             <th><button className="sortHead" onClick={() => sortBy('status')}>Stage <ArrowUpDown /></button></th>
+            <th><button className="sortHead" onClick={() => sortBy('score')}>Score <ArrowUpDown /></button></th>
             <th><button className="sortHead" onClick={() => sortBy('deal_value')}>Potential <ArrowUpDown /></button></th>
             <th><button className="sortHead" onClick={() => sortBy('next_follow_up')}>Follow-up <ArrowUpDown /></button></th>
             <th>Source</th><th>Actions</th>
@@ -77,11 +83,14 @@ export function LeadPipeline({ filtered, sorted, paged, safePage, setPage, pageC
           <tbody>
             {paged.map(lead => {
               const stage = lead.status || 'New Lead'
+              const score=lead.score ?? calculateLeadScore(lead).score
+              const tier=lead.score_tier || calculateLeadScore(lead).scoreTier
               const due = Boolean(lead.next_follow_up && lead.next_follow_up <= today() && !['Won', 'Lost'].includes(stage))
               return (
                 <tr key={lead.id}>
                   <td data-label="Lead"><div className="lead"><b className="leadAvatar" aria-hidden="true">{(lead.company || '?')[0].toUpperCase()}</b><span className="leadCopy"><strong title={lead.company || 'Untitled lead'}>{lead.company || 'Untitled lead'}</strong><small title={[lead.contact_name?.trim(), lead.niche?.trim()].filter(Boolean).join(' · ')}>{[lead.contact_name?.trim(), lead.niche?.trim()].filter(Boolean).join(' · ') || 'No contact name'}</small></span></div></td>
                   <td data-label="Stage"><div className="stageControl"><select className={`stage ${tone[stage] || 'blue'}`} aria-label={`Stage for ${lead.company || 'lead'}`} value={stage} onChange={e => move(lead, e.target.value)}>{stages.map(item => <option key={item}>{item}</option>)}</select><ChevronDown aria-hidden="true" /></div></td>
+                  <td data-label="Score"><span className={`scoreBadge score-${tier.toLowerCase()}`} title={`Lead score: ${score}/100`}>{tier==='Hot'?'🔥':tier==='Warm'?'⚡':'❄️'} <b>{score}</b></span></td>
                   <td data-label="Potential"><strong>{money(lead.deal_value)}</strong></td>
                   <td data-label="Follow-up" className={due ? 'due' : ''}>{lead.next_follow_up || '—'}</td>
                   <td data-label="Source"><span className="pill">{lead.source || 'Manual'}</span></td>
@@ -100,7 +109,7 @@ export function LeadPipeline({ filtered, sorted, paged, safePage, setPage, pageC
                 </tr>
               )
             })}
-            {!filtered.length && <tr><td colSpan={6}><div className="empty">{hasFilters?<><Search/><strong>No matching leads</strong><span>Try a different search term or clear one of the pipeline filters.</span><button className="secondary" onClick={() => { setQuery(''); setStatus('All'); setSource('All') }}>Clear filters</button></>:<><Users/><strong>No leads yet</strong><span>Add your first prospect and start tracking the conversation.</span><button className="primary" onClick={() => { setForm({ ...empty }); setModal(true) }}><Plus />Add first lead</button></>}</div></td></tr>}
+            {!filtered.length && <tr><td colSpan={7}><div className="empty">{hasFilters?<><Search/><strong>No matching leads</strong><span>Try a different search term or clear one of the pipeline filters.</span><button className="secondary" onClick={() => { setQuery(''); setStatus('All'); setSource('All') }}>Clear filters</button></>:<><Users/><strong>No leads yet</strong><span>Add your first prospect and start tracking the conversation.</span><button className="primary" onClick={() => { setForm({ ...empty }); setModal(true) }}><Plus />Add first lead</button></>}</div></td></tr>}
           </tbody>
         </table>
       </div>

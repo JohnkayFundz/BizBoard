@@ -4,9 +4,16 @@ export interface PipelineLead {
   contact_name?: string | null
   email?: string | null
   phone?: string | null
+  website?: string | null
   status?: string | null
   deal_value?: number | string | null
   next_follow_up?: string | null
+  website_status?: string | null
+  website_outdated?: boolean | null
+  niche?: string | null
+  instagram?: string | null
+  score?: number | null
+  score_tier?: string | null
 }
 
 export interface PipelineMetrics {
@@ -45,6 +52,32 @@ function normalizedEmail(value: unknown): string {
 
 function normalizedCompany(value: unknown): string {
   return String(value ?? '').trim().toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+}
+
+function normalizedWebsite(value: unknown): string {
+  return String(value ?? '').trim().toLowerCase().replace(/^https?:\/\//i, '').replace(/^www\./, '').replace(/\/+$/, '')
+}
+
+export interface LeadDuplicateMatch {
+  reason: 'website' | 'company_contact'
+  leadId: string | number
+}
+
+export function findLeadDuplicate(leads: PipelineLead[], candidate: PipelineLead, editingId?: string | number): LeadDuplicateMatch | null {
+  const candidateWebsite = normalizedWebsite(candidate.website)
+  const candidateCompany = normalizedCompany(candidate.company)
+  const candidateContact = String(candidate.contact_name ?? '').trim().toLowerCase().replace(/\s+/g, ' ')
+
+  for (const lead of leads) {
+    if (editingId !== undefined && String(lead.id) === String(editingId)) continue
+    if (candidateWebsite && normalizedWebsite(lead.website) === candidateWebsite) return { reason: 'website', leadId: lead.id as string | number }
+    const company = normalizedCompany(lead.company)
+    const contact = String(lead.contact_name ?? '').trim().toLowerCase().replace(/\s+/g, ' ')
+    if (candidateCompany && candidateContact && company === candidateCompany && contact === candidateContact) {
+      return { reason: 'company_contact', leadId: lead.id as string | number }
+    }
+  }
+  return null
 }
 
 export interface DuplicateGroup {

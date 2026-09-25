@@ -39,5 +39,6 @@ export function normalizeWebsiteUrl(value: string): string {
   const candidate = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`
   const parsed = new URL(candidate)
   if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('Use an HTTP or HTTPS website URL')
-  return parsed.toString().replace(/\/$/, '')
+  const pathname = parsed.pathname.replace(/\/+$/, '')
+  return `${parsed.hostname.toLowerCase()}${pathname}`
 }

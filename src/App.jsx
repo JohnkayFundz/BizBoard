@@ -109,18 +109,29 @@ export default function App(){
  function activityLabel(type){return type==='Stage change'?'Stage update':type}
  function interpolateTemplate(template,l){
   const analysis=proposalAnalyses[l?.id]||(intelResult&&intelLead?.id===l?.id?intelResult:null)
-  const vars={contact_name:l?.contact_name?.split(' ')[0]||'there',company_name:(l?.company||'your business').replace(/\s*[—-]\s*Website\s*$/i,''),opportunity_score:String(analysis?.score??'—'),recommended_service:analysis?.recommended_service||'Business Website',location:l?.location||'Lagos',website:l?.website||''}
-  return template.replace(/{{\s*([a-z_]+)\s*}}/gi,(_,key)=>String(vars[key]??''))
+  const companyName=(l?.company||'your business').replace(/\s*[—-]\s*Website\s*$/i,'')
+  const vars={
+    contactName:l?.contact_name?.trim()?.split(/\s+/)[0]||'there',
+    companyName,
+    opportunityType:l?.website?'website improvement opportunity':'new website opportunity',
+    opportunityScore:String(analysis?.score??'—'),
+    recommendedService:analysis?.recommended_service||'Business Website',
+    location:l?.location||'Lagos',
+    website:l?.website||''
+  }
+  return template.replace(/{{\s*([a-z_]+)\s*}}|{\s*([A-Za-z]+)\s*}/g,(_,legacy,key)=>{
+    const map={contact_name:'contactName',company_name:'companyName',opportunity_score:'opportunityScore',recommended_service:'recommendedService'}
+    const resolved=key||map[legacy]
+    return resolved in vars?String(vars[resolved]??''):''
+  })
 }
 function outreachTemplate(l,channel){
-  const name=l?.contact_name?.split(' ')[0]||'there'
-  const company=(l?.company||'your business').replace(/\s*[—-]\s*Website\s*$/i,'')
   const offering=/real estate|property|properties/i.test(`${l?.company||''} ${l?.niche||''}`)?'properties':'products'
-  if(channel==='Email')return interpolateTemplate(`Hi {{contact_name}},\n\nI came across {{company_name}} and wanted to reach out. I’m a web developer based in Lagos, and I help businesses improve their online presence with modern, mobile-friendly websites and e-commerce solutions.\n\nI have a quick idea that could help {{company_name}} present its ${offering} more effectively online. If you’re open to it, I’d be happy to show you.\n\nBest,\nJohn\nKing JohnKay Fundz`,l)
-  if(channel==='Instagram')return interpolateTemplate(`Hi {{contact_name}} 👋 I came across {{company_name}} and wanted to reach out. I build modern websites and e-commerce stores that help businesses present their products/services professionally online. I can share a quick idea for your brand if you’re interested. — JohnKay Fundz`,l)
-  return interpolateTemplate(`Hi {{contact_name}}, I’m John from King JohnKay Fundz. I came across {{company_name}} and wanted to ask if you currently have a website or are considering improving your online presence. I can share a quick demo/idea for your business if useful.`,l)
- }
- function openOutreach(l){
+  if(channel==='Email')return interpolateTemplate(`Hi {contactName},\n\nI came across {companyName} and wanted to reach out. I’m a web developer based in Lagos, and I help businesses improve their online presence with modern, mobile-friendly websites and e-commerce solutions.\n\nI have a quick idea that could help {companyName} present its ${offering} more effectively online. You currently have a {opportunityType}, and I’d be happy to share the idea if you’re open to it.\n\nBest,\nJohn\nKing JohnKay Fundz`,l)
+  if(channel==='Instagram')return interpolateTemplate(`Hi {contactName} 👋 I came across {companyName} and wanted to reach out. I build modern websites and e-commerce stores that help businesses present their products/services professionally online. I noticed a {opportunityType} and can share a quick idea for your brand if you’re interested. — JohnKay Fundz`,l)
+  return interpolateTemplate(`Hi {contactName}, I’m John from King JohnKay Fundz. I came across {companyName} and wanted to ask about your {opportunityType}. I can share a quick demo/idea for your business if useful.`,l)
+}
+function openOutreach(l){
   setOutreachLead(l);setOutreachChannel(l?.email?'Email':l?.instagram?'Instagram':'WhatsApp');setOutreachCopied(false)
   setOutreachMessage(outreachTemplate(l,l?.email?'Email':l?.instagram?'Instagram':'WhatsApp'))
  }

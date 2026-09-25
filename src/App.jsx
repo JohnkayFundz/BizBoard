@@ -60,7 +60,7 @@ export default function App(){
   setProposalAnalyses(x=>({...x,[mapped.leadId]:{score:mapped.score,checks:mapped.checklist,findings:mapped.keyFindings,opportunities:mapped.keyOpportunities,recommended_service:mapped.recommendedService,estimated_value:mapped.estimatedValue}}))
   // Keep the CRM pipeline value aligned with the latest saved opportunity estimate.
   if (mapped.estimatedValue > 0) {
-   const leadUpdate=await supabase.from('crm_leads').update({deal_value:mapped.estimatedValue,updated_at:new Date().toISOString()}).eq('id',mapped.leadId).select().single()
+   const nextScore=calculateLeadScore({...intelLead,deal_value:mapped.estimatedValue}); const leadUpdate=await supabase.from('crm_leads').update({deal_value:mapped.estimatedValue,score:nextScore.score,score_tier:nextScore.scoreTier,updated_at:new Date().toISOString()}).eq('id',mapped.leadId).select().single()
    if (!leadUpdate.error) {
     setLeads(x=>x.map(l=>l.id===leadUpdate.data.id?leadUpdate.data:l))
     if (intelLead?.id===leadUpdate.data.id) setIntelLead(leadUpdate.data)
@@ -100,7 +100,7 @@ export default function App(){
    if(r.error){notify(r.error.message);return}
    const nextStage=followUpOutcome==='Interested'?'Interested':followUpOutcome==='Not interested'?'Lost':activityLead.status
    const closedStage=['Won','Lost'].includes(nextStage)
-   const u=await supabase.from('crm_leads').update({next_follow_up:closedStage?null:followUpNextDate,status:nextStage,updated_at:new Date().toISOString()}).eq('id',activityLead.id).select().single()
+   const nextScore=calculateLeadScore({...activityLead,status:nextStage}); const u=await supabase.from('crm_leads').update({next_follow_up:closedStage?null:followUpNextDate,status:nextStage,score:nextScore.score,score_tier:nextScore.scoreTier,updated_at:new Date().toISOString()}).eq('id',activityLead.id).select().single()
    if(u.error){notify(u.error.message);return}
    setLeads(x=>x.map(l=>l.id===activityLead.id?u.data:l));setActivityLead(u.data);setActivities(x=>[r.data,...x]);if(nextStage!==activityLead.status){const sh=await supabase.from('crm_lead_activity').insert({lead_id:activityLead.id,activity_type:'Stage change',note:'Stage changed from '+activityLead.status+' to '+nextStage+' after follow-up outcome: '+followUpOutcome+'.'}).select().single();if(!sh.error)setActivities(x=>[sh.data,...x])}setFollowUpNote('');setFollowUpNextDate('')
    notify(`Follow-up saved · next follow-up ${followUpNextDate}${nextStage!==activityLead.status?' · stage moved to '+nextStage:''}`)
@@ -344,7 +344,7 @@ function generateProposal(){buildProposal()}
   try{
    const followUp=new Date();followUp.setDate(followUp.getDate()+3);const followUpDate=`${followUp.getFullYear()}-${String(followUp.getMonth()+1).padStart(2,'0')}-${String(followUp.getDate()).padStart(2,'0')}`
    const value=Number(proposalPrice||0)
-   const u=await supabase.from('crm_leads').update({status:'Proposal Sent',deal_value:value,next_follow_up:followUpDate,updated_at:new Date().toISOString()}).eq('id',proposalLead.id).select().single()
+   const nextScore=calculateLeadScore({...proposalLead,status:'Proposal Sent',deal_value:value}); const u=await supabase.from('crm_leads').update({status:'Proposal Sent',deal_value:value,score:nextScore.score,score_tier:nextScore.scoreTier,next_follow_up:followUpDate,updated_at:new Date().toISOString()}).eq('id',proposalLead.id).select().single()
    if(u.error){notify(u.error.message);return}
    const a=await supabase.from('crm_lead_activity').insert({lead_id:proposalLead.id,activity_type:'Proposal Sent',note:`Proposal prepared and marked as sent. Service: ${proposalService}. Investment: ${money(value)}. Follow-up scheduled for ${followUpDate}.`}).select().single()
    if(a.error){notify(a.error.message);return}

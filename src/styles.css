@@ -240,6 +240,13 @@ tbody tr:hover{background:rgba(30,41,59,.32)}
 .lead strong{color:#e7edf6}
 .stageControl .stage{border:1px solid rgba(148,163,184,.12);background-clip:padding-box}
 .pill{border:1px solid rgba(148,163,184,.1);background:rgba(30,41,59,.65);color:#a8b5c7}
+.scoreBadge{display:inline-flex;align-items:center;gap:5px;min-width:72px;justify-content:center;padding:5px 9px;border-radius:999px;border:1px solid rgba(148,163,184,.16);font-size:12px;font-weight:700;white-space:nowrap}
+.scoreBadge b{font-variant-numeric:tabular-nums}
+.score-hot{color:#34d399;background:rgba(16,185,129,.12);border-color:rgba(52,211,153,.24)}
+.score-warm{color:#fbbf24;background:rgba(245,158,11,.12);border-color:rgba(251,191,36,.24)}
+.score-cold{color:#94a3b8;background:rgba(100,116,139,.12);border-color:rgba(148,163,184,.2)}
+.actionScore{margin-left:auto;flex:0 0 auto}
+
 .actions{gap:6px}
 .actions button{
   width:34px;height:34px;padding:0;

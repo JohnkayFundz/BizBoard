@@ -139,6 +139,9 @@ describe('premium UI primitives', () => {
           setForm={() => {}}
           setModal={() => {}}
           empty={{}}
+          selectedIds={[]}
+          setSelectedIds={() => {}}
+          onGenerateCampaign={() => {}}
         />
       )
     }

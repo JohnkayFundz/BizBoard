@@ -54,6 +54,15 @@ export default function App(){
   const mapped={id:data.id,leadId:data.lead_id,websiteUrl:data.website_url,score:data.score,checklist:data.checklist,keyFindings:data.key_findings,keyOpportunities:data.key_opportunities,recommendedService:data.recommended_service,estimatedValue:Number(data.estimated_value||0),reportType:data.report_type,createdAt:data.created_at}
   setIntelligenceHistory(x=>[mapped,...x.filter(r=>r.id!==mapped.id)])
   setProposalAnalyses(x=>({...x,[mapped.leadId]:{score:mapped.score,checks:mapped.checklist,findings:mapped.keyFindings,opportunities:mapped.keyOpportunities,recommended_service:mapped.recommendedService,estimated_value:mapped.estimatedValue}}))
+  // Keep the CRM pipeline value aligned with the latest saved opportunity estimate.
+  if (mapped.estimatedValue > 0) {
+   const leadUpdate=await supabase.from('crm_leads').update({deal_value:mapped.estimatedValue,updated_at:new Date().toISOString()}).eq('id',mapped.leadId).select().single()
+   if (!leadUpdate.error) {
+    setLeads(x=>x.map(l=>l.id===leadUpdate.data.id?leadUpdate.data:l))
+    if (intelLead?.id===leadUpdate.data.id) setIntelLead(leadUpdate.data)
+    if (proposalLead?.id===leadUpdate.data.id) setProposalLead(leadUpdate.data)
+   } else notify('Opportunity saved, but pipeline value sync failed: '+leadUpdate.error.message)
+  }
   return mapped
  }
  function applyIntelligenceReport(report){

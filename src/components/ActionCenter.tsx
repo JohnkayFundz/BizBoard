@@ -1,8 +1,42 @@
 import { Bell, CalendarClock, CheckCircle2, MessageSquare, Target, TrendingUp } from 'lucide-react'
 
-export function ActionCenter({ leads, metrics, followUps, openActivity, openOutreach, setForm, setModal, empty, money }) {
-  const overdue = followUps?.overdue || []
-  const today = followUps?.today || []
+type Lead = {
+  id: string | number
+  company?: string | null
+  status?: string | null
+  next_follow_up?: string | null
+  email?: string | null
+  instagram?: string | null
+  phone?: string | null
+}
+
+type Metrics = {
+  openValue?: number
+  activePipeline?: number
+  closedRevenue?: number
+}
+
+type FollowUps = {
+  overdue?: Lead[]
+  today?: Lead[]
+  upcoming?: Lead[]
+}
+
+type ActionCenterProps = {
+  leads: Lead[]
+  metrics?: Metrics
+  followUps?: FollowUps
+  openActivity: (lead: Lead) => void
+  openOutreach: (lead: Lead) => void
+  setForm: (value: Record<string, unknown>) => void
+  setModal: (value: boolean) => void
+  empty: Record<string, unknown>
+  money: (value: number) => string
+}
+
+export function ActionCenter({ leads, metrics, followUps, openActivity, openOutreach, setForm, setModal, empty, money }: ActionCenterProps) {
+  const overdue: Lead[] = followUps?.overdue || []
+  const today: Lead[] = followUps?.today || []
   const priority = [
     ...overdue.map(lead => ({ lead, label: 'Overdue follow-up', tone: 'danger' })),
     ...today.map(lead => ({ lead, label: 'Due today', tone: 'warning' })),

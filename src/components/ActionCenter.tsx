@@ -11,9 +11,10 @@ type Lead = {
 }
 
 type Metrics = {
-  openValue?: number
-  activePipeline?: number
-  closedRevenue?: number
+  active?: number
+  pipeline?: number
+  won?: number
+  due?: number
 }
 
 type FollowUps = {
@@ -49,7 +50,7 @@ export function ActionCenter({ leads, metrics, followUps, openActivity, openOutr
   ].filter((item, index, list) => list.findIndex(other => other.lead.id === item.lead.id) === index).slice(0, 4)
 
   const actionCount = overdue.length + today.length
-  const pipelineValue = Number(metrics?.openValue || 0)
+  const pipelineValue = Number(metrics?.pipeline || 0)
 
   return (
     <section className="panel actionCenter">
@@ -64,8 +65,8 @@ export function ActionCenter({ leads, metrics, followUps, openActivity, openOutr
 
       <div className="actionStats">
         <div><span><Bell /> Follow-ups</span><strong>{actionCount}</strong><small>{overdue.length ? `${overdue.length} overdue` : 'Nothing overdue'}</small></div>
-        <div><span><TrendingUp /> Open pipeline</span><strong>{money(pipelineValue)}</strong><small>{metrics?.activePipeline || 0} active leads</small></div>
-        <div><span><CheckCircle2 /> Closed revenue</span><strong>{money(metrics?.closedRevenue || 0)}</strong><small>Won deals</small></div>
+        <div><span><TrendingUp /> Open pipeline</span><strong>{money(pipelineValue)}</strong><small>{metrics?.active || 0} active leads</small></div>
+        <div><span><CheckCircle2 /> Closed revenue</span><strong>{money(metrics?.won || 0)}</strong><small>Won deals</small></div>
       </div>
 
       <div className="actionBody">

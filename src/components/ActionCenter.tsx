@@ -81,7 +81,7 @@ export function ActionCenter({ leads, metrics, followUps, openActivity, openOutr
 
       <div className="actionBody">
         <div className="actionList">
-          {priority.length ? priority.map(({ lead, label, tone }) => (
+          {priority.length ? priority.map(({ lead, label, tone, score, tier }) => (
             <div className={`actionItem action-${tone}`} key={lead.id}>
               <div className="actionScore"><span className={`scoreBadge score-${tier.toLowerCase()}`}>{tier==='Hot'?'🔥':tier==='Warm'?'⚡':'❄️'} <b>{score}</b></span></div><div className="actionIcon">{label.includes('follow-up') || label.includes('Due') ? <CalendarClock /> : <MessageSquare />}</div>
               <div className="actionMain">

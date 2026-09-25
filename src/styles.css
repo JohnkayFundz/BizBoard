@@ -375,3 +375,36 @@ tbody tr:hover{background:rgba(30,41,59,.32)}
 .field input:invalid:not(:placeholder-shown),.field select:invalid{border-color:rgba(248,113,113,.55)}
 
 /* Quality gate: staged enterprise UI surface */
+
+
+/* Sales Action Center */
+.actionCenter{margin:0 0 22px}
+.actionStats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:0 22px 16px}
+.actionStats>div{padding:13px 14px;border:1px solid var(--border-subtle);background:rgba(9,19,33,.58);border-radius:12px;min-width:0}
+.actionStats span{display:flex;align-items:center;gap:6px;color:var(--text-muted);font-size:11px;font-weight:700}
+.actionStats span svg{width:14px;height:14px;color:#d7a640}
+.actionStats strong{display:block;margin-top:5px;color:var(--text-strong);font-size:18px}
+.actionStats small{display:block;margin-top:3px;color:var(--text-faint);font-size:10px}
+.actionBody{padding:0 22px 18px}
+.actionList{display:grid;gap:8px}
+.actionItem{display:flex;align-items:center;gap:11px;padding:11px;border:1px solid var(--border-subtle);background:rgba(11,22,37,.72);border-radius:12px;min-width:0}
+.actionItem:hover{border-color:var(--border-strong);background:rgba(18,32,54,.8)}
+.actionIcon{width:34px;height:34px;flex:none;display:grid;place-items:center;border-radius:10px;background:rgba(30,41,59,.75);color:#9fb5d5}
+.actionIcon svg{width:16px;height:16px}
+.action-danger .actionIcon{color:#f87171;background:rgba(248,113,113,.09)}
+.action-warning .actionIcon{color:#fbbf24;background:var(--accent-soft)}
+.action-success .actionIcon{color:#34d399;background:var(--success-soft)}
+.actionMain{min-width:0;flex:1}
+.actionMain strong,.actionMain small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.actionMain strong{font-size:12px;color:var(--text-strong)}
+.actionMain small{margin-top:3px;color:var(--text-muted);font-size:10px}
+.actionButtons{display:flex;gap:7px;flex:none}
+.actionButtons button{min-height:34px;padding:7px 10px;font-size:10px}
+.actionEmpty{min-height:135px;display:grid;place-items:center;align-content:center;gap:7px;text-align:center;border:1px dashed var(--border-strong);border-radius:12px;color:var(--text-faint)}
+.actionEmpty svg{width:22px;height:22px;color:#34d399}
+.actionEmpty strong{color:var(--text);font-size:12px}
+.actionEmpty span{font-size:11px}
+.actionEmpty .primary{margin-top:3px;min-height:34px;padding:7px 11px;font-size:11px}
+.actionFooter{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;padding-top:12px;border-top:1px solid rgba(30,41,59,.65);color:var(--text-faint);font-size:10px}
+.actionFooter .secondary{min-height:34px;padding:7px 10px;font-size:10px}
+@media(max-width:800px){.actionStats{grid-template-columns:1fr}.actionBody{padding-left:14px;padding-right:14px}.actionStats{padding-left:14px;padding-right:14px}.actionItem{align-items:flex-start;flex-wrap:wrap}.actionMain{min-width:calc(100% - 46px)}.actionButtons{width:100%;margin-left:45px}.actionButtons button{flex:1}.actionFooter{align-items:flex-start;flex-direction:column}}

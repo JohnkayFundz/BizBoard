@@ -43,8 +43,8 @@ describe('premium UI primitives', () => {
   it('maps pipeline metrics into the Action Center without dropping revenue values', () => {
     render(
       <ActionCenter
-        leads={[{ id: 1, company: 'Gbemi Closet', status: 'Contacted', deal_value: 150000 }]}
-        metrics={{ total: 1, active: 1, pipeline: 150000, won: 0, due: 0 }}
+        leads={[{ id: 1, company: 'Gbemi Closet', status: 'Contacted' }]}
+        metrics={{ active: 1, pipeline: 150000, won: 0, due: 0 }}
         followUps={{ overdue: [], today: [], upcoming: [] }}
         openActivity={() => {}}
         openOutreach={() => {}}

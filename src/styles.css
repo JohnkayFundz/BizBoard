@@ -408,3 +408,49 @@ tbody tr:hover{background:rgba(30,41,59,.32)}
 .actionFooter{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;padding-top:12px;border-top:1px solid rgba(30,41,59,.65);color:var(--text-faint);font-size:10px}
 .actionFooter .secondary{min-height:34px;padding:7px 10px;font-size:10px}
 @media(max-width:800px){.actionStats{grid-template-columns:1fr}.actionBody{padding-left:14px;padding-right:14px}.actionStats{padding-left:14px;padding-right:14px}.actionItem{align-items:flex-start;flex-wrap:wrap}.actionMain{min-width:calc(100% - 46px)}.actionButtons{width:100%;margin-left:45px}.actionButtons button{flex:1}.actionFooter{align-items:flex-start;flex-direction:column}}
+
+/* Production polish: CRM identity, document preview and channel states */
+.lead{min-width:0;align-items:center}
+.leadAvatar{
+  width:32px!important;
+  height:32px!important;
+  min-width:32px;
+  flex:0 0 32px;
+  border-radius:999px!important;
+  display:grid!important;
+  place-items:center;
+  background:#1e293b!important;
+  color:#fbbf24!important;
+  border:1px solid #334155!important;
+  flex-shrink:0;
+  user-select:none;
+  font-size:11px;
+  font-weight:800;
+}
+.leadCopy{min-width:0;display:grid;gap:3px;line-height:1.25}
+.leadCopy strong,.leadCopy small{display:block;min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.leadCopy strong{font-size:12px;line-height:1.3}
+.leadCopy small{margin-top:0!important;font-size:10px;line-height:1.35;color:#74839a}
+.proposalPreview pre{
+  max-height:620px;
+  overflow:auto;
+  font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif!important;
+  font-size:12px!important;
+  line-height:1.75!important;
+  letter-spacing:.005em;
+}
+.channelNotice{
+  margin:0 0 10px;
+  padding:10px 12px;
+  border:1px solid rgba(245,158,11,.2);
+  border-radius:10px;
+  background:rgba(245,158,11,.055);
+  color:#d6bd83;
+  font-size:11px;
+  line-height:1.45;
+}
+.channelTabs button:disabled{opacity:.55;cursor:not-allowed}
+@media(max-width:800px){
+  .leadCopy{max-width:calc(100vw - 110px)}
+  .leadCopy strong,.leadCopy small{max-width:100%}
+}

@@ -23,6 +23,7 @@ const tone={ 'New Lead':'blue',Contacted:'indigo',Replied:'violet',Interested:'a
 const empty={company:'',contact_name:'',role:'',email:'',phone:'',website:'',instagram:'',niche:'',location:'',source:'Manual',status:'New Lead',deal_value:'',next_follow_up:'',notes:''}
 const money=v=>new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:0}).format(Number(v||0))
 const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+const dateAfterDays=days=>{const d=new Date();d.setDate(d.getDate()+days);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
 
 export default function App(){
  const [session,setSession]=useState(null),[loading,setLoading]=useState(true),[mode,setMode]=useState('login')
@@ -83,11 +84,12 @@ export default function App(){
   notify('Proposal pre-filled from opportunity report')
  }
 
- async function openActivity(l){setActivityLead(l);setActivityNote('');setActivityType('Note');setActivityLoading(true);const {data,error}=await supabase.from('crm_lead_activity').select('*').eq('lead_id',l.id).order('created_at',{ascending:false});if(error)notify(error.message);else setActivities(data||[]);setActivityLoading(false)}
+ async function openActivity(l){setActivityLead(l);setActivityNote('');setActivityType('Note');setFollowUpMethod('Call');setFollowUpOutcome('Needs follow-up');setFollowUpNextDate(dateAfterDays(3));setFollowUpNote('');setActivityLoading(true);const {data,error}=await supabase.from('crm_lead_activity').select('*').eq('lead_id',l.id).order('created_at',{ascending:false});if(error)notify(error.message);else setActivities(data||[]);setActivityLoading(false)}
  async function addActivity(e){e.preventDefault();if(!activityLead||!activityNote.trim())return;setActivitySaving(true);const r=await supabase.from('crm_lead_activity').insert({lead_id:activityLead.id,activity_type:activityType,note:activityNote.trim()}).select().single();if(r.error)notify(r.error.message);else{let followUpUpdated=false;if(activityFollowUp){const u=await supabase.from('crm_leads').update({next_follow_up:activityFollowUp,updated_at:new Date().toISOString()}).eq('id',activityLead.id).select().single();if(u.error)notify(u.error.message);else{setLeads(x=>x.map(a=>a.id===activityLead.id?u.data:a));setActivityLead(u.data);followUpUpdated=true}}setActivities(x=>[r.data,...x]);setActivityNote('');setActivityFollowUp('');notify(followUpUpdated?'Activity added · next follow-up scheduled':'Activity added')}setActivitySaving(false)}
  async function completeFollowUp(){
   if(!activityLead||completingFollowUp)return
-  if(!followUpNextDate||!followUpNote.trim()){notify('Add the outcome, notes, and next follow-up date');return}
+  if(!followUpNote.trim()){notify('Add the outcome and notes');return}
+  if(followUpOutcome!=='Not interested'&&!followUpNextDate){notify('Add the next follow-up date');return}
   setCompletingFollowUp(true)
   try{
    const note=`Follow-up completed via ${followUpMethod}. Outcome: ${followUpOutcome}. ${followUpNote.trim()} Next follow-up: ${followUpNextDate}.`

@@ -4,6 +4,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Metric } from '../components/Ui'
 import { LeadPipeline } from '../components/LeadPipeline'
+import { ActionCenter } from '../components/ActionCenter'
 import { assessIntelligence } from '../utils/intelligence'
 import { calculatePipelineMetrics, findPotentialDuplicateLeads } from '../utils/pipeline'
 import { buildMailtoUrl, buildWhatsAppUrl, buildInstagramInboxUrl, normalizeWhatsAppPhone } from '../utils/outreach'
@@ -37,6 +38,24 @@ describe('premium UI primitives', () => {
     expect(metrics.active).toBe(2)
     expect(metrics.pipeline).toBe(150000)
     expect(metrics.won).toBe(150000)
+  })
+
+  it('maps pipeline metrics into the Action Center without dropping revenue values', () => {
+    render(
+      <ActionCenter
+        leads={[{ id: 1, company: 'Gbemi Closet', status: 'Contacted', deal_value: 150000 }]}
+        metrics={{ total: 1, active: 1, pipeline: 150000, won: 0, due: 0 }}
+        followUps={{ overdue: [], today: [], upcoming: [] }}
+        openActivity={() => {}}
+        openOutreach={() => {}}
+        setForm={() => {}}
+        setModal={() => {}}
+        empty={{}}
+        money={(value) => `₦${value.toLocaleString('en-NG')}`}
+      />
+    )
+    expect(screen.getByText('₦150,000')).toBeInTheDocument()
+    expect(screen.getByText('1 active leads')).toBeInTheDocument()
   })
 
   it('flags likely duplicate leads by normalized contact identity', () => {

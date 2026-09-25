@@ -4,6 +4,7 @@ export interface PipelineLead {
   contact_name?: string | null
   email?: string | null
   phone?: string | null
+  website?: string | null
   status?: string | null
   deal_value?: number | string | null
   next_follow_up?: string | null

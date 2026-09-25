@@ -40,7 +40,7 @@ export function ActionCenter({ leads, metrics, followUps, openActivity, openOutr
   const priority = [
     ...overdue.map(lead => ({ lead, label: 'Overdue follow-up', tone: 'danger' })),
     ...today.map(lead => ({ lead, label: 'Due today', tone: 'warning' })),
-    ...leads.filter(lead => ['Interested', 'Proposal Sent'].includes(lead.status)).map(lead => ({
+    ...leads.filter(lead => ['Interested', 'Proposal Sent'].includes(lead.status || '')).map(lead => ({
       lead,
       label: lead.status === 'Proposal Sent' ? 'Proposal follow-up' : 'Interested lead',
       tone: 'success'

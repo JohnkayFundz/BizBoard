@@ -47,6 +47,7 @@ interface Props {
 }
 
 export function LeadPipeline({ filtered, sorted, paged, safePage, setPage, pageCount, pageSize, query, setQuery, status, setStatus, source, setSource, sources, stages, tone, sortBy, move, today, money, contactAction, openActivity, edit, remove, setForm, setModal, empty }: Props) {
+  const hasFilters = Boolean(query.trim() || status !== 'All' || source !== 'All')
   return (
     <section className="panel pipelinePanel" id="leads" aria-labelledby="pipeline-heading">
       <div className="panelHead panelHeadStack">
@@ -79,7 +80,7 @@ export function LeadPipeline({ filtered, sorted, paged, safePage, setPage, pageC
               const due = Boolean(lead.next_follow_up && lead.next_follow_up <= today() && !['Won', 'Lost'].includes(stage))
               return (
                 <tr key={lead.id}>
-                  <td data-label="Lead"><div className="lead"><b className="leadAvatar" aria-hidden="true">{(lead.company || '?')[0].toUpperCase()}</b><span className="leadCopy"><strong title={lead.company || 'Untitled lead'}>{lead.company || 'Untitled lead'}</strong><small title={[lead.contact_name || 'No contact name', lead.niche].filter(Boolean).join(' · ')}>{lead.contact_name || 'No contact name'}{lead.niche ? ' · ' + lead.niche : ''}</small></span></div></td>
+                  <td data-label="Lead"><div className="lead"><b className="leadAvatar" aria-hidden="true">{(lead.company || '?')[0].toUpperCase()}</b><span className="leadCopy"><strong title={lead.company || 'Untitled lead'}>{lead.company || 'Untitled lead'}</strong><small title={[lead.contact_name?.trim(), lead.niche?.trim()].filter(Boolean).join(' · ')}>{[lead.contact_name?.trim(), lead.niche?.trim()].filter(Boolean).join(' · ') || 'No contact name'}</small></span></div></td>
                   <td data-label="Stage"><div className="stageControl"><select className={`stage ${tone[stage] || 'blue'}`} aria-label={`Stage for ${lead.company || 'lead'}`} value={stage} onChange={e => move(lead, e.target.value)}>{stages.map(item => <option key={item}>{item}</option>)}</select><ChevronDown aria-hidden="true" /></div></td>
                   <td data-label="Potential"><strong>{money(lead.deal_value)}</strong></td>
                   <td data-label="Follow-up" className={due ? 'due' : ''}>{lead.next_follow_up || '—'}</td>
@@ -99,7 +100,7 @@ export function LeadPipeline({ filtered, sorted, paged, safePage, setPage, pageC
                 </tr>
               )
             })}
-            {!filtered.length && <tr><td colSpan={6}><div className="empty"><Users/><strong>No leads yet</strong><span>Add your first prospect and start tracking the conversation.</span><button className="primary" onClick={() => { setForm({ ...empty }); setModal(true) }}><Plus />Add first lead</button></div></td></tr>}
+            {!filtered.length && <tr><td colSpan={6}><div className="empty">{hasFilters?<><Search/><strong>No matching leads</strong><span>Try a different search term or clear one of the pipeline filters.</span><button className="secondary" onClick={() => { setQuery(''); setStatus('All'); setSource('All') }}>Clear filters</button></>:<><Users/><strong>No leads yet</strong><span>Add your first prospect and start tracking the conversation.</span><button className="primary" onClick={() => { setForm({ ...empty }); setModal(true) }}><Plus />Add first lead</button></>}</div></td></tr>}
           </tbody>
         </table>
       </div>

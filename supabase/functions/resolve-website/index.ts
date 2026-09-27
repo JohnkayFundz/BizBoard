@@ -289,10 +289,11 @@ async function check(url: string, businessName: string, location: string, discov
     if (/\.ng$|\.com\.ng$/i.test(host)) score += 10
     score = Math.min(100, score)
 
+    const sourceType = classifyHost(new URL(r.url).hostname, title)
     const confidence: Candidate['confidence'] =
-      r.ok && (matches >= Math.min(2, tokens.length) || domainMatch) && score >= 75
+      r.ok && sourceType === 'unknown' && (matches >= Math.min(2, tokens.length) || domainMatch) && score >= 75
         ? 'verified'
-        : r.ok && score >= 60
+        : r.ok && sourceType === 'unknown' && score >= 60
           ? 'likely'
           : 'unverified'
 
@@ -303,6 +304,7 @@ async function check(url: string, businessName: string, location: string, discov
       title,
       confidence,
       score,
+      source_type: sourceType,
       reason: confidence === 'verified'
         ? discoveryTitle
           ? 'Found through web discovery and verified as a strong business-name match.'
@@ -310,16 +312,16 @@ async function check(url: string, businessName: string, location: string, discov
         : confidence === 'likely'
           ? 'Found through web discovery; business-name match should be reviewed before saving.'
           : sourceType === 'social_profile'
-          ? 'This is a social profile, not an official business website.'
-          : sourceType === 'directory'
-            ? 'This is a directory/listing result, not an official business website.'
-            : sourceType === 'marketplace'
-              ? 'This is a marketplace/listing result, not an official business website.'
-              : sourceType === 'portfolio'
-                ? 'This appears to be a portfolio/design page rather than the business website.'
-                : sourceType === 'news_media'
-                  ? 'This is a news/media result, not an official business website.'
-                  : 'A live domain responded, but the business match is weak.',
+            ? 'This is a social profile, not an official business website.'
+            : sourceType === 'directory'
+              ? 'This is a directory/listing result, not an official business website.'
+              : sourceType === 'marketplace'
+                ? 'This is a marketplace/listing result, not an official business website.'
+                : sourceType === 'portfolio'
+                  ? 'This appears to be a portfolio/design page rather than the business website.'
+                  : sourceType === 'news_media'
+                    ? 'This is a news/media result, not a news/business website.'
+                    : 'A live domain responded, but the business match is weak.',
     }
   } catch {
     return null

@@ -54,6 +54,7 @@ export default function App(){
   const assessment=assessIntelligence(checks,hasWebsite)
   const opportunityScore=hasWebsite?assessment.score:5
   const report={lead_id:intelLead.id,website_url:intelUrl.trim()||intelLead.website||null,score:Number(result?.score??opportunityScore),checklist:checks,key_findings:result?.findings||[],key_opportunities:result?.opportunities||[],recommended_service:(result?.recommended_service||assessment.recommendedService),estimated_value:Number(result?.estimated_value??assessment.estimatedValue),report_type:(intelLead.website||intelUrl.trim()?'audit':'new_website')}
+  if(!supabase){notify('Report generated, but Supabase is not configured.');return null}
   const {data,error}=await supabase.from('crm_intelligence_reports').insert(report).select().single()
   if(error){notify('Report generated, but history save failed: '+error.message);return null}
   const mapped={id:data.id,leadId:data.lead_id,websiteUrl:data.website_url,score:data.score,checklist:data.checklist,keyFindings:data.key_findings,keyOpportunities:data.key_opportunities,recommendedService:data.recommended_service,estimatedValue:Number(data.estimated_value||0),reportType:data.report_type,createdAt:data.created_at}
@@ -302,8 +303,21 @@ async function launchInstagramOutreach(){
     'Prepared by JohnKay Fundz'
   ].filter(Boolean).join('\n')
   setIntelReport(report)
+  return report
  }
- async function generateIntelligence(){if(!intelLead||intelGenerating)return;setIntelGenerating(true);try{buildIntelligenceReport(null);await saveIntelligenceReport(null,intelChecks);notify('Opportunity report generated')}catch(error){notify(error instanceof Error?error.message:'Opportunity report generation failed')}finally{setIntelGenerating(false)}}
+ async function generateIntelligence(){
+  if(!intelLead||intelGenerating)return
+  setIntelGenerating(true)
+  try{
+   const report=buildIntelligenceReport(null,intelChecks)
+   if(!report)throw new Error('Unable to build the opportunity report.')
+   const saved=await saveIntelligenceReport(null,intelChecks)
+   if(!saved)notify('Opportunity report generated, but it could not be saved to history.')
+   else notify('Opportunity report generated and saved')
+  }catch(error){
+   notify(error instanceof Error?error.message:'Opportunity report generation failed')
+  }finally{setIntelGenerating(false)}
+ }
  async function saveLeadWebsite(){
   if(!intelLead||!intelUrl.trim())return
   let website=''

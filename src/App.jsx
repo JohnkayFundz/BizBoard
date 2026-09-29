@@ -122,11 +122,15 @@ export default function App(){
  function interpolateTemplate(template,l,analysisOverride=null){
   const analysis=analysisOverride||proposalAnalyses[l?.id]||(intelResult&&intelLead?.id===l?.id?intelResult:null)
   const companyName=(l?.company||'your business').replace(/\s*[—-]\s*Website\s*$/i,'')
-  const findings=(analysis?.findings||[]).filter(Boolean).map(x=>String(x).replace(/^•\s*/, '')).join('; ')
-  const opportunities=(analysis?.opportunities||[]).filter(Boolean).map(x=>String(x).replace(/^•\s*/, ''))
-  const opportunityAngle=analysis?.opportunity_angle||analysis?.sales_angle||analysis?.salesAngle||opportunities[0]||findings||'a stronger online presence and customer enquiry journey'
+  const findings=(analysis?.findings||[]).filter(Boolean).map(x=>String(x).replace(/^•\s*/, '').trim())
+  const opportunities=(analysis?.opportunities||[]).filter(Boolean).map(x=>String(x).replace(/^•\s*/, '').trim())
+  const firstFinding=findings[0]||''
+  const conciseFinding=firstFinding
+    .replace(/^A professional website could establish a modern, high-converting digital presence for [^.]+, making it easier for customers to discover the business, understand its offerings and make enquiries\.?/i,'Customers would benefit from a clearer place to discover the business, understand its offerings and make enquiries.')
+    .replace(/^A professional website could [^.]+\.?/i,'A clearer online presence could make it easier for customers to discover the business and enquire.')
+  const opportunityAngle=analysis?.opportunity_angle||analysis?.sales_angle||analysis?.salesAngle||opportunities[0]||conciseFinding||'a stronger online presence and customer enquiry journey'
   const salesAngle=analysis?.sales_angle||analysis?.salesAngle||opportunityAngle
-  const vars={contactName:l?.contact_name?.trim()?.split(/\s+/)[0]||'there',companyName,opportunityScore:String(analysis?.score??'—'),recommendedService:analysis?.recommended_service||'Business Website',estimatedValue:analysis?.estimated_value?money(analysis.estimated_value):'',opportunityAngle,salesAngle,keyFindings:findings||'No additional findings recorded.',keyOpportunities:opportunities.join('; '),location:l?.location||'Lagos',website:l?.website||'',websiteContext:l?.website?'existing website':'online presence'}
+  const vars={contactName:l?.contact_name?.trim()?.split(/\s+/)[0]||'there',companyName,opportunityScore:String(analysis?.score??'—'),recommendedService:analysis?.recommended_service||'Business Website',estimatedValue:analysis?.estimated_value?money(analysis.estimated_value):'',opportunityAngle,salesAngle,keyFindings:conciseFinding||'A clearer online presence could make it easier for customers to discover the business and enquire.',keyOpportunities:opportunities.join('; '),location:l?.location||'Lagos',website:l?.website||'',websiteContext:l?.website?'existing website':'online presence'}
   return template.replace(/{{\s*([a-z_]+)\s*}}|{\s*([A-Za-z]+(?:_[A-Za-z]+)*)\s*}/g,(_,legacy,key)=>{
     const map={contact_name:'contactName',company_name:'companyName',opportunity_score:'opportunityScore',recommended_service:'recommendedService',estimated_value:'estimatedValue',opportunity_angle:'opportunityAngle',sales_angle:'salesAngle',key_findings:'keyFindings',key_opportunities:'keyOpportunities',website_context:'websiteContext'}
     const resolved=key?(map[key]||key):map[legacy]
@@ -186,7 +190,7 @@ King JohnKay Fundz`)
 If you’re interested, I can send you a quick idea for {companyName}. — JohnKay Fundz`)
   return personalize(`Hi {contactName}, I’m John from King JohnKay Fundz. I came across {companyName} and noticed an opportunity to strengthen its online presence with a {recommendedService}.
 
-This could make it easier for customers to discover the business, understand what it offers and send enquiries.
+{key_findings}
 
 If useful, I can send you a quick idea for {companyName}.`)
 }

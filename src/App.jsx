@@ -170,21 +170,24 @@ async function openOutreach(l){
   const analysis=await resolveOutreachAnalysis(l)
   setOutreachMessage(outreachTemplate(l,channel,analysis))
 }
- function openCampaign(){
+ async function openCampaign(){
   const selected=leads.filter(l=>selectedIds.some(id=>String(id)===String(l.id)) && !['Won','Lost'].includes(l.status||''))
   if(!selected.length){notify('Select at least one active lead');return}
-  setCampaignLeads(selected);setCampaignIndex(0);setCampaignChannel(selected[0]?.email?'Email':selected[0]?.instagram?'Instagram':'WhatsApp');setCampaignMessage(outreachTemplate(selected[0],selected[0]?.email?'Email':selected[0]?.instagram?'Instagram':'WhatsApp'));setCampaignCopied(false);setCampaignOpen(true)
+  const channel=selected[0]?.email?'Email':selected[0]?.instagram?'Instagram':'WhatsApp'
+  setCampaignLeads(selected);setCampaignIndex(0);setCampaignChannel(channel);setCampaignCopied(false);setCampaignOpen(true)
+  const analysis=await resolveOutreachAnalysis(selected[0])
+  setCampaignMessage(outreachTemplate(selected[0],channel,analysis))
  }
- function campaignChannelChange(channel){
+ async function campaignChannelChange(channel){
   setCampaignChannel(channel)
   const lead=campaignLeads[campaignIndex]
-  if(lead)setCampaignMessage(outreachTemplate(lead,channel))
+  if(lead){const analysis=await resolveOutreachAnalysis(lead);setCampaignMessage(outreachTemplate(lead,channel,analysis))}
   setCampaignCopied(false)
  }
- function campaignIndexChange(index){
+ async function campaignIndexChange(index){
   setCampaignIndex(index)
   const lead=campaignLeads[index]
-  if(lead)setCampaignMessage(outreachTemplate(lead,campaignChannel))
+  if(lead){const analysis=await resolveOutreachAnalysis(lead);setCampaignMessage(outreachTemplate(lead,campaignChannel,analysis))}
   setCampaignCopied(false)
  }
  async function copyCampaignMessage(){

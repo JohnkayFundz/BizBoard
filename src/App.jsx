@@ -130,8 +130,18 @@ export default function App(){
     return resolved in vars?String(vars[resolved]??''):''
   })
 }
-function outreachTemplate(l,channel){
-  const analysis=proposalAnalyses[l?.id]||(intelResult&&intelLead?.id===l?.id?intelResult:null)
+async function resolveOutreachAnalysis(l){
+  const cached=proposalAnalyses[l?.id]||(intelResult&&intelLead?.id===l?.id?intelResult:null)
+  if(cached)return cached
+  if(!supabase||!l?.id)return null
+  const {data}=await supabase.from('crm_intelligence_reports').select('*').eq('lead_id',l.id).order('created_at',{ascending:false}).limit(1).maybeSingle()
+  if(!data)return null
+  const analysis={score:data.score,checks:data.checklist,findings:data.key_findings||[],opportunities:data.key_opportunities||[],recommended_service:data.recommended_service||'Business Website',estimated_value:Number(data.estimated_value||0)}
+  setProposalAnalyses(x=>({...x,[l.id]:analysis}))
+  return analysis
+}
+function outreachTemplate(l,channel,analysisOverride=null){
+  const analysis=analysisOverride||proposalAnalyses[l?.id]||(intelResult&&intelLead?.id===l?.id?intelResult:null)
   const opportunity=analysis?.opportunities?.find(Boolean)||''
   const finding=analysis?.findings?.find(Boolean)||''
   const service=analysis?.recommended_service||'Business Website'
@@ -163,10 +173,12 @@ If you’re interested, I can send you a quick idea for {companyName}. — JohnK
 
 If useful, I can send you a quick idea for {companyName}.`)
 }
-function openOutreach(l){
-  setOutreachLead(l);setOutreachChannel(l?.email?'Email':l?.instagram?'Instagram':'WhatsApp');setOutreachCopied(false)
-  setOutreachMessage(outreachTemplate(l,l?.email?'Email':l?.instagram?'Instagram':'WhatsApp'))
- }
+async function openOutreach(l){
+  const channel=l?.email?'Email':l?.instagram?'Instagram':'WhatsApp'
+  setOutreachLead(l);setOutreachChannel(channel);setOutreachCopied(false)
+  const analysis=await resolveOutreachAnalysis(l)
+  setOutreachMessage(outreachTemplate(l,channel,analysis))
+}
  function openCampaign(){
   const selected=leads.filter(l=>selectedIds.some(id=>String(id)===String(l.id)) && !['Won','Lost'].includes(l.status||''))
   if(!selected.length){notify('Select at least one active lead');return}

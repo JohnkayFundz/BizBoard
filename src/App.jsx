@@ -126,6 +126,7 @@ export default function App(){
   const opportunities=(analysis?.opportunities||[]).filter(Boolean).map(x=>String(x).replace(/^•\s*/, '').trim())
   const firstFinding=findings[0]||''
   const conciseFinding=firstFinding
+    .replace(/^No verified website is currently saved for this prospect\.?$/i,'It looks like there’s an opportunity to give customers a clearer place to discover the business and enquire.')
     .replace(/^A professional website could establish a modern, high-converting digital presence for [^.]+, making it easier for customers to discover the business, understand its offerings and make enquiries\.?/i,'Customers would benefit from a clearer place to discover the business, understand its offerings and make enquiries.')
     .replace(/^A professional website could [^.]+\.?/i,'A clearer online presence could make it easier for customers to discover the business and enquire.')
   const opportunityAngle=analysis?.opportunity_angle||analysis?.sales_angle||analysis?.salesAngle||opportunities[0]||conciseFinding||'a stronger online presence and customer enquiry journey'

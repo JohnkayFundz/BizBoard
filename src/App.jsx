@@ -136,9 +136,33 @@ export default function App(){
 async function resolveOutreachAnalysis(l){
   const cached=proposalAnalyses[l?.id]||(intelResult&&intelLead?.id===l?.id?intelResult:null)
   if(!supabase||!l?.id)return cached||null
-  const {data,error}=await supabase.from('crm_intelligence_reports').select('score,checklist,key_findings,key_opportunities,sales_angle,recommended_service,estimated_value').eq('lead_id',l.id).order('created_at',{ascending:false}).limit(1).maybeSingle()
+  const {data,error}=await supabase
+   .from('crm_intelligence_reports')
+   .select('score,checklist,key_findings,key_opportunities,sales_angle,recommended_service,estimated_value')
+   .eq('lead_id',l.id)
+   .order('created_at',{ascending:false})
+   .limit(1)
+   .maybeSingle()
   if(error||!data)return cached||null
-  const analysis={score:data.score,checks:data.checklist,findings:data.key_findings||[],opportunities:data.key_opportunities||[],sales_angle:data.sales_angle||'',recommended_service:data.recommended_service||'Business Website',estimated_value:Number(data.estimated_value||0)}
+
+  const toText=value=>Array.isArray(value)?value.filter(Boolean).map(item=>String(item).trim()).filter(Boolean):String(value??'').trim()
+  const findings=toText(data.key_findings)
+  const opportunities=toText(data.key_opportunities)
+  const salesAngle=toText(data.sales_angle)
+  const opportunityAngle=salesAngle||((Array.isArray(opportunities)?opportunities:[])[0]||'')
+  const recommendedService=toText(data.recommended_service)||'Business Website'
+  const estimatedValue=Number(data.estimated_value||0)
+
+  const analysis={
+   score:data.score,
+   checks:data.checklist||{},
+   findings:Array.isArray(findings)?findings:findings?[findings]:[],
+   opportunities:Array.isArray(opportunities)?opportunities:opportunities?[opportunities]:[],
+   sales_angle:salesAngle,
+   recommended_service:recommendedService,
+   estimated_value:Number.isFinite(estimatedValue)&&estimatedValue>0?estimatedValue:0,
+   opportunity_angle:opportunityAngle
+  }
   setProposalAnalyses(x=>({...x,[l.id]:analysis}))
   return analysis
 }

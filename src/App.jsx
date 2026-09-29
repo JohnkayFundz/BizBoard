@@ -53,7 +53,13 @@ export default function App(){
   const hasWebsite=Boolean(intelLead.website||intelUrl.trim())
   const assessment=assessIntelligence(checks,hasWebsite)
   const opportunityScore=hasWebsite?assessment.score:5
-  const report={lead_id:intelLead.id,website_url:intelUrl.trim()||intelLead.website||null,score:Number(result?.score??opportunityScore),checklist:checks,key_findings:result?.findings||[],key_opportunities:result?.opportunities||[],recommended_service:(result?.recommended_service||assessment.recommendedService),estimated_value:Number(result?.estimated_value??assessment.estimatedValue),report_type:(intelLead.website||intelUrl.trim()?'audit':'new_website')}
+  const company=String(intelLead.company||'this business').replace(/\s*[—-]\s*Website\s*$/i,'')
+  const fallbackFindings=hasWebsite?['Existing website available for review.']:['No verified website is currently saved for this prospect.','Treat this as a new website opportunity rather than an existing-site audit.']
+  const fallbackOpportunities=hasWebsite?Object.entries(checks).filter(([,value])=>!value).map(([key])=>'Improve '+(key==='mobile'?'mobile experience':key==='cta'?'calls to action':key==='contact'?'contact and enquiry options':key==='ecommerce'?'e-commerce capability':'basic SEO readiness')):['Establish a professional online presence and clear customer enquiry path.','Present products or services clearly on mobile devices.','Make it easier for customers to contact or enquire.']
+  const findings=(result?.findings?.filter(Boolean)||fallbackFindings).map(x=>String(x).replace(/^•\s*/,''))
+  const opportunities=(result?.opportunities?.filter(Boolean)||fallbackOpportunities).map(x=>String(x).replace(/^•\s*/,''))
+  const salesAngle=String(result?.sales_angle||result?.salesAngle||(hasWebsite?'Improving '+company+'\'s existing online experience could make it easier for customers to understand the business, take action and enquire.':'A professional website could establish a modern, high-converting digital presence for '+company+', making it easier for customers to discover the business, understand its offerings and make enquiries.'))
+  const report={lead_id:intelLead.id,website_url:intelUrl.trim()||intelLead.website||null,score:Number(result?.score??opportunityScore),checklist:checks,key_findings:findings,key_opportunities:opportunities,sales_angle:salesAngle,recommended_service:(result?.recommended_service||assessment.recommendedService),estimated_value:Number(result?.estimated_value??assessment.estimatedValue),report_type:(intelLead.website||intelUrl.trim()?'audit':'new_website')}
   if(!supabase){notify('Report generated, but Supabase is not configured.');return null}
   const {data,error}=await supabase.from('crm_intelligence_reports').insert(report).select().single()
   if(error){notify('Report generated, but history save failed: '+error.message);return null}
@@ -112,67 +118,53 @@ export default function App(){
  async function deleteActivity(a){if(!a?.id)return;if(!confirm('Delete this activity entry?'))return;const r=await supabase.from('crm_lead_activity').delete().eq('id',a.id);if(r.error){notify(r.error.message);return}setActivities(x=>x.filter(item=>item.id!==a.id));notify('Activity deleted')}
  async function contactAction(l,type){const targets={Email:l.email,Call:l.phone,Instagram:l.instagram,WhatsApp:l.phone,Website:l.website};const target=targets[type];if(!target){notify(`No ${type==='Call'?'phone':type.toLowerCase()} available for this lead`);return}const activityTypeValue=type==='Website'?'Note':type;const note=type==='Website'?'Opened website':`${type} contact action started`;const r=await supabase.from('crm_lead_activity').insert({lead_id:l.id,activity_type:activityTypeValue,note}).select().single();if(r.error){notify(r.error.message);return}setActivities(x=>activityLead?.id===l.id?[r.data,...x]:x);notify(`${type} activity recorded`);let url=target.trim();if(type==='Email')url=`mailto:${target.trim()}`;if(type==='Call')url=`tel:${target.trim()}`;if(type==='WhatsApp'){let n=target.replace(/\D/g,'');if(n.startsWith('0'))n='234'+n.slice(1);url=`https://wa.me/${n}`}if(type==='Instagram'){const handle=target.trim().replace(/^@/,'');url=handle.startsWith('http')?handle:`https://instagram.com/${handle}`}if(type==='Website'&&!/^https?:\/\//i.test(url))url=`https://${url}`;window.open(url,'_blank','noopener,noreferrer')}
  function activityLabel(type){return type==='Stage change'?'Stage update':type}
- function interpolateTemplate(template,l){
-  const analysis=proposalAnalyses[l?.id]||(intelResult&&intelLead?.id===l?.id?intelResult:null)
+ function interpolateTemplate(template,l,analysisOverride=null){
+  const analysis=analysisOverride||proposalAnalyses[l?.id]||(intelResult&&intelLead?.id===l?.id?intelResult:null)
   const companyName=(l?.company||'your business').replace(/\s*[—-]\s*Website\s*$/i,'')
-  const vars={
-    contactName:l?.contact_name?.trim()?.split(/\s+/)[0]||'there',
-    companyName,
-    opportunityType:l?.website?'website improvement opportunity':'new website opportunity',
-    opportunityScore:String(analysis?.score??'—'),
-    recommendedService:analysis?.recommended_service||'Business Website',
-    location:l?.location||'Lagos',
-    website:l?.website||''
-  }
-  return template.replace(/{{\s*([a-z_]+)\s*}}|{\s*([A-Za-z]+)\s*}/g,(_,legacy,key)=>{
-    const map={contact_name:'contactName',company_name:'companyName',opportunity_score:'opportunityScore',recommended_service:'recommendedService'}
+  const findings=(analysis?.findings||[]).filter(Boolean).map(x=>String(x).replace(/^•\s*/, '')).join('; ')
+  const opportunities=(analysis?.opportunities||[]).filter(Boolean).map(x=>String(x).replace(/^•\s*/, ''))
+  const opportunityAngle=analysis?.sales_angle||analysis?.salesAngle||opportunities[0]||findings||'a stronger online presence and customer enquiry journey'
+  const vars={contactName:l?.contact_name?.trim()?.split(/\s+/)[0]||'there',companyName,opportunityScore:String(analysis?.score??'—'),recommendedService:analysis?.recommended_service||'Business Website',estimatedValue:analysis?.estimated_value?money(analysis.estimated_value):'',opportunityAngle,salesAngle:analysis?.sales_angle||analysis?.salesAngle||opportunityAngle,keyFindings:findings||'No additional findings recorded.',keyOpportunities:opportunities.join('; '),location:l?.location||'Lagos',website:l?.website||'',websiteContext:l?.website?'existing website':'online presence'}
+  return template.replace(/{{\s*([a-z_]+)\s*}}|{\s*([A-Za-z]+(?:_[A-Za-z]+)*)\s*}/g,(_,legacy,key)=>{
+    const map={contact_name:'contactName',company_name:'companyName',opportunity_score:'opportunityScore',recommended_service:'recommendedService',estimated_value:'estimatedValue',opportunity_angle:'opportunityAngle',sales_angle:'salesAngle',key_findings:'keyFindings',key_opportunities:'keyOpportunities',website_context:'websiteContext'}
     const resolved=key||map[legacy]
     return resolved in vars?String(vars[resolved]??''):''
   })
 }
+
 async function resolveOutreachAnalysis(l){
   const cached=proposalAnalyses[l?.id]||(intelResult&&intelLead?.id===l?.id?intelResult:null)
   if(cached)return cached
   if(!supabase||!l?.id)return null
-  const {data}=await supabase.from('crm_intelligence_reports').select('*').eq('lead_id',l.id).order('created_at',{ascending:false}).limit(1).maybeSingle()
+  const {data}=await supabase.from('crm_intelligence_reports').select('score,checklist,key_findings,key_opportunities,sales_angle,recommended_service,estimated_value').eq('lead_id',l.id).order('created_at',{ascending:false}).limit(1).maybeSingle()
   if(!data)return null
-  const analysis={score:data.score,checks:data.checklist,findings:data.key_findings||[],opportunities:data.key_opportunities||[],recommended_service:data.recommended_service||'Business Website',estimated_value:Number(data.estimated_value||0)}
+  const analysis={score:data.score,checks:data.checklist,findings:data.key_findings||[],opportunities:data.key_opportunities||[],sales_angle:data.sales_angle||'',recommended_service:data.recommended_service||'Business Website',estimated_value:Number(data.estimated_value||0)}
   setProposalAnalyses(x=>({...x,[l.id]:analysis}))
   return analysis
 }
+
 function outreachTemplate(l,channel,analysisOverride=null){
   const analysis=analysisOverride||proposalAnalyses[l?.id]||(intelResult&&intelLead?.id===l?.id?intelResult:null)
-  const opportunity=analysis?.opportunities?.find(Boolean)||''
-  const finding=analysis?.findings?.find(Boolean)||''
-  const service=analysis?.recommended_service||'Business Website'
-  const value=analysis?.estimated_value?money(analysis.estimated_value):''
-  const angle=opportunity||finding||'a stronger online presence and customer enquiry journey'
-  const hasWebsite=Boolean(l?.website)
-  const websiteContext=hasWebsite?'existing website':'online presence'
-  const vars={opportunityAngle:angle.replace(/^•\s*/,''),recommendedService:service,estimatedValue:value,websiteContext}
-  const personalize=(template)=>interpolateTemplate(template,l)
-    .replace(/\{opportunityAngle\}/g,String(vars.opportunityAngle))
-    .replace(/\{recommendedService\}/g,String(vars.recommendedService))
-    .replace(/\{estimatedValue\}/g,String(vars.estimatedValue))
-    .replace(/\{websiteContext\}/g,String(vars.websiteContext))
+  const personalize=(template)=>interpolateTemplate(template,l,analysis)
   if(channel==='Email')return personalize(`Hi {contactName},
 
 I came across {companyName} and wanted to reach out. I’m John from King JohnKay Fundz, a web developer based in Lagos.
 
-I noticed an opportunity around {opportunityAngle}. I believe a {recommendedService} could help {companyName} present its business more clearly online and make it easier for customers to enquire.
+I noticed an opportunity around {opportunity_angle}. {key_findings} I believe a {recommendedService} could help {companyName} present its business more clearly online and make it easier for customers to enquire.
 
 I’d be happy to share the idea and, if useful, a quick example of what I would build. Would you be open to a short conversation?
 
 Best,
 John
 King JohnKay Fundz`)
-  if(channel==='Instagram')return personalize(`Hi {contactName} 👋 I came across {companyName} and wanted to reach out. I noticed an opportunity around {opportunityAngle}. I build {recommendedService} solutions that make it easier for customers to discover a business and enquire.
+  if(channel==='Instagram')return personalize(`Hi {contactName} 👋 I came across {companyName} and wanted to reach out. I noticed an opportunity around {opportunity_angle}. {key_findings} I build {recommendedService} solutions that make it easier for customers to discover a business and enquire.
 
 If you’re interested, I can send you a quick idea for {companyName}. — JohnKay Fundz`)
-  return personalize(`Hi {contactName}, I’m John from King JohnKay Fundz. I came across {companyName} and noticed an opportunity around {opportunityAngle}. A {recommendedService} could help improve the {websiteContext} and customer enquiry journey.
+  return personalize(`Hi {contactName}, I’m John from King JohnKay Fundz. I came across {companyName} and noticed an opportunity around {sales_angle}. A {recommendedService} could help improve the {website_context} and customer enquiry journey.
 
 If useful, I can send you a quick idea for {companyName}.`)
 }
+
 async function openOutreach(l){
   const channel=l?.email?'Email':l?.instagram?'Instagram':'WhatsApp'
   setOutreachLead(l);setOutreachChannel(channel);setOutreachCopied(false)
@@ -335,15 +327,15 @@ async function launchInstagramOutreach(){
     'Prepared by JohnKay Fundz'
   ].filter(Boolean).join('\n')
   setIntelReport(report)
-  return report
+  return {report,analysis:{score:Number(score),checks,findings:findings.map(x=>String(x).replace(/^•\s*/,'')),opportunities:capabilities.map(x=>String(x).replace(/^•\s*/,'')),sales_angle:pitch,recommended_service:service,estimated_value:Number(result?.estimated_value??assessment.estimatedValue)}}
  }
  async function generateIntelligence(){
   if(!intelLead||intelGenerating)return
   setIntelGenerating(true)
   try{
-   const report=buildIntelligenceReport(null,intelChecks)
-   if(!report)throw new Error('Unable to build the opportunity report.')
-   const saved=await saveIntelligenceReport(null,intelChecks)
+   const built=buildIntelligenceReport(null,intelChecks)
+   if(!built?.report)throw new Error('Unable to build the opportunity report.')
+   const saved=await saveIntelligenceReport(built.analysis,intelChecks)
    if(!saved)notify('Opportunity report generated, but it could not be saved to history.')
    else notify('Opportunity report generated and saved')
   }catch(error){
@@ -366,7 +358,7 @@ async function launchInstagramOutreach(){
    const r=await supabase.functions.invoke('analyze-website',{body:{url:intelUrl.trim()}})
    if(r.error||!r.data?.success){notify(r.data?.error||r.error?.message||'Website analysis failed');return}
    const nextChecks=r.data.checks||{mobile:false,cta:false,contact:false,ecommerce:false,seo:false}
-   setIntelChecks(nextChecks);setIntelResult(r.data);setProposalAnalyses(x=>({...x,[intelLead.id]:r.data}));buildIntelligenceReport(r.data,nextChecks);await saveIntelligenceReport(r.data,nextChecks);const historyNote='Website opportunity report saved. Score: '+r.data.score+'/5. Recommended service: '+r.data.recommended_service+'. Estimated value: '+money(r.data.estimated_value)+'. '+cleanText((r.data.opportunities||[]).join(' '),1500);const h=await supabase.from('crm_lead_activity').insert({lead_id:intelLead.id,activity_type:'Note',note:historyNote}).select().single();if(h.error)notify('Analysis complete, but history save failed: '+h.error.message);notify('Website analyzed successfully · report saved to lead history')
+   setIntelChecks(nextChecks);setIntelResult(r.data);setProposalAnalyses(x=>({...x,[intelLead.id]:r.data}));const built=buildIntelligenceReport(r.data,nextChecks);await saveIntelligenceReport({...r.data,...(built?.analysis||{})},nextChecks);const historyNote='Website opportunity report saved. Score: '+r.data.score+'/5. Recommended service: '+r.data.recommended_service+'. Estimated value: '+money(r.data.estimated_value)+'. '+cleanText((r.data.opportunities||[]).join(' '),1500);const h=await supabase.from('crm_lead_activity').insert({lead_id:intelLead.id,activity_type:'Note',note:historyNote}).select().single();if(h.error)notify('Analysis complete, but history save failed: '+h.error.message);notify('Website analyzed successfully · report saved to lead history')
   }catch(error){notify(error instanceof Error?error.message:'Website analysis failed')}
   finally{setIntelAnalyzing(false)}
  }

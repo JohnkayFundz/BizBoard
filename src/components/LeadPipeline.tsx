@@ -54,7 +54,8 @@ interface Props {
 }
 
 export function LeadPipeline({ filtered, sorted, paged, safePage, setPage, pageCount, pageSize, query, setQuery, status, setStatus, source, setSource, sources, stages, tone, sortBy, sortKey, move, today, money, contactAction, openActivity, edit, remove, setForm, setModal, empty }: Props) {
-  const hasFilters = Boolean(query.trim() || status !== 'All' || source !== 'All')
+  const safeQuery = String(query ?? '')
+  const hasFilters = Boolean(safeQuery.trim() || status !== 'All' || source !== 'All')
   return (
     <section className="panel pipelinePanel" id="leads" aria-labelledby="pipeline-heading">
       <div className="panelHead panelHeadStack">
@@ -66,7 +67,7 @@ export function LeadPipeline({ filtered, sorted, paged, safePage, setPage, pageC
         <label className="searchField">
           <Search aria-hidden="true" />
           <span className="srOnly">Search leads</span>
-          <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search company, person, niche…" />
+          <input value={safeQuery} onChange={e => setQuery(e.target.value)} placeholder="Search company, person, niche…" />
         </label>
         <Select icon={<Filter />} value={status} set={setStatus} options={['All', ...stages]} ariaLabel="Filter by stage" />
         <Select value={source} set={setSource} options={['All', ...sources]} ariaLabel="Filter by source" />
@@ -91,7 +92,7 @@ export function LeadPipeline({ filtered, sorted, paged, safePage, setPage, pageC
               const due = Boolean(lead.next_follow_up && lead.next_follow_up <= today() && !['Won', 'Lost'].includes(stage))
               return (
                 <tr key={lead.id}>
-                  <td data-label="Lead"><div className="lead"><b className="leadAvatar" aria-hidden="true">{(lead.company || '?')[0].toUpperCase()}</b><span className="leadCopy"><strong title={lead.company || 'Untitled lead'}>{lead.company || 'Untitled lead'}</strong><small title={[lead.contact_name?.trim(), lead.niche?.trim()].filter(Boolean).join(' · ')}>{[lead.contact_name?.trim(), lead.niche?.trim()].filter(Boolean).join(' · ') || 'No contact name'}</small></span></div></td>
+                  <td data-label="Lead"><div className="lead"><b className="leadAvatar" aria-hidden="true">{(lead.company || '?')[0].toUpperCase()}</b><span className="leadCopy"><strong title={lead.company || 'Untitled lead'}>{lead.company || 'Untitled lead'}</strong><small title={[String(lead.contact_name ?? '').trim(), String(lead.niche ?? '').trim()].filter(Boolean).join(' · ')}>{[lead.contact_name?.trim(), lead.niche?.trim()].filter(Boolean).join(' · ') || 'No contact name'}</small></span></div></td>
                   <td data-label="Stage"><div className="stageControl"><select className={`stage ${tone[stage] || 'blue'}`} aria-label={`Stage for ${lead.company || 'lead'}`} value={stage} onChange={e => move(lead, e.target.value)}>{stages.map(item => <option key={item}>{item}</option>)}</select><ChevronDown aria-hidden="true" /></div></td>
                   <td data-label="Score"><span className={`scoreBadge score-${tier.toLowerCase()}`} title={`Lead score: ${score}/100`}>{tier==='Hot'?'🔥':tier==='Warm'?'⚡':'❄️'} <b>{score}</b></span></td>
                   <td data-label="Potential"><strong>{money(lead.deal_value)}</strong></td>

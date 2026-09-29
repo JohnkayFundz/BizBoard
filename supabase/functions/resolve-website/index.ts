@@ -62,9 +62,15 @@ function decodeHtml(value: string) {
     .replace(/&gt;/g, '>')
 }
 
-function searchQuery(businessName: string, location: string) {
+function searchQueries(businessName: string, location: string) {
   const cleanLocation = location.split(',')[0].trim()
-  return ['"' + businessName.replace(/"/g, '') + '"', cleanLocation, 'Nigeria', 'website'].filter(Boolean).join(' ')
+  const name = businessName.replace(/"/g, '').trim()
+  const withoutCountry = name.replace(/\b(nigeria|ng|lagos)\b/gi, '').replace(/\s+/g, ' ').trim()
+  return [
+    ['"' + name + '"', cleanLocation, 'Nigeria', 'website'],
+    [name, cleanLocation, 'Nigeria', 'official website'],
+    [withoutCountry || name, 'Nigeria', 'website'],
+  ].map(parts => parts.filter(Boolean).join(' '))
 }
 
 function isLowValueHost(hostname: string, title = '') {
@@ -178,8 +184,8 @@ async function fetchSearchResults(endpoint: string, engine: 'ddg' | 'bing'): Pro
 }
 
 
-async function fetchJinaSearch(businessName: string, location: string): Promise<{ results: Array<{ url: string; title: string }>; diagnostic: DiscoveryDiagnostic }> {
-  const query = encodeURIComponent(searchQuery(businessName, location))
+async function fetchJinaSearch(queryText: string): Promise<{ results: Array<{ url: string; title: string }>; diagnostic: DiscoveryDiagnostic }> {
+  const query = encodeURIComponent(queryText)
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 10000)
   try {
@@ -235,28 +241,31 @@ async function fetchJinaSearch(businessName: string, location: string): Promise<
 }
 
 async function discoverWebResults(businessName: string, location: string) {
-  const query = encodeURIComponent(searchQuery(businessName, location))
-  const endpoints: Array<{ url: string; engine: 'ddg' | 'bing' }> = [
-    { url: 'https://www.bing.com/search?q=' + query + '&count=10', engine: 'bing' },
-    { url: 'https://html.duckduckgo.com/html/?q=' + query, engine: 'ddg' },
-  ]
-  const groups = await Promise.all([
-    ...endpoints.map(item => fetchSearchResults(item.url, item.engine)),
-    fetchJinaSearch(businessName, location),
-  ])
+  const queries = searchQueries(businessName, location)
+  const jobs: Array<Promise<{ results: Array<{ url: string; title: string }>; diagnostic: DiscoveryDiagnostic }>> = []
+
+  for (const queryText of queries) {
+    const query = encodeURIComponent(queryText)
+    jobs.push(fetchSearchResults('https://www.bing.com/search?q=' + query + '&count=10', 'bing'))
+    jobs.push(fetchSearchResults('https://html.duckduckgo.com/html/?q=' + query, 'ddg'))
+    jobs.push(fetchJinaSearch(queryText))
+  }
+
+  const groups = await Promise.all(jobs)
   const seen = new Set<string>()
   const merged: Array<{ url: string; title: string }> = []
+
   for (const group of groups) {
     for (const item of group.results) {
       const key = item.url.toLowerCase()
       if (seen.has(key)) continue
       seen.add(key)
       merged.push(item)
-      if (merged.length >= 12) {
-        return { results: merged, diagnostics: groups.map(group => group.diagnostic) }
-      }
+      if (merged.length >= 30) break
     }
+    if (merged.length >= 30) break
   }
+
   return { results: merged, diagnostics: groups.map(group => group.diagnostic) }
 }
 
@@ -347,14 +356,27 @@ Deno.serve(async (req: Request) => {
     const emailDomain = email.includes('@') ? email.split('@').pop()?.toLowerCase() : ''
     if (emailDomain && !/^(gmail|yahoo|outlook|hotmail|icloud|protonmail)\./i.test(emailDomain)) domains.add(emailDomain)
 
-    for (const tld of ['com', 'com.ng', 'ng']) {
-      domains.add(base + '.' + tld)
-      domains.add('www.' + base + '.' + tld)
+    const domainBases = new Set<string>([base])
+    const tokens = meaningfulTokens(businessName)
+    if (tokens.length >= 2) {
+      domainBases.add(tokens.join(''))
+      domainBases.add(tokens.slice(0, 2).join(''))
+      domainBases.add(tokens.slice(-2).join(''))
+    }
+    const withoutCountry = cleanName(businessName).replace(/\b(nigeria|ng|lagos)\b/gi, '').trim()
+    const countryFree = compact(withoutCountry)
+    if (countryFree) domainBases.add(countryFree)
+
+    for (const domainBase of domainBases) {
+      for (const tld of ['com', 'com.ng', 'ng']) {
+        domains.add(domainBase + '.' + tld)
+        domains.add('www.' + domainBase + '.' + tld)
+      }
     }
 
     const discovery = await discoverWebResults(businessName, location)
     const discovered = discovery.results
-    const discoveredChecks = discovered.slice(0, 8).map(item =>
+    const discoveredChecks = discovered.slice(0, 12).map(item =>
       check(item.url, businessName, location, item.title)
     )
 

@@ -174,17 +174,19 @@ function outreachTemplate(l,channel,analysisOverride=null){
 
 I came across {companyName} and wanted to reach out. I’m John from King JohnKay Fundz, a web developer based in Lagos.
 
-I noticed an opportunity around {opportunity_angle}. {key_findings} I believe a {recommendedService} could help {companyName} present its business more clearly online and make it easier for customers to enquire.
+I noticed an opportunity to strengthen {companyName}'s online presence with a {recommendedService}. {key_findings} This could make it easier for customers to discover the business, understand what it offers and enquire.
 
 I’d be happy to share the idea and, if useful, a quick example of what I would build. Would you be open to a short conversation?
 
 Best,
 John
 King JohnKay Fundz`)
-  if(channel==='Instagram')return personalize(`Hi {contactName} 👋 I came across {companyName} and wanted to reach out. I noticed an opportunity around {opportunity_angle}. {key_findings} I build {recommendedService} solutions that make it easier for customers to discover a business and enquire.
+  if(channel==='Instagram')return personalize(`Hi {contactName} 👋 I came across {companyName} and noticed an opportunity to strengthen its online presence with a {recommendedService}. {key_findings}
 
 If you’re interested, I can send you a quick idea for {companyName}. — JohnKay Fundz`)
-  return personalize(`Hi {contactName}, I’m John from King JohnKay Fundz. I came across {companyName} and noticed an opportunity around {sales_angle}. A {recommendedService} could help improve the {website_context} and customer enquiry journey.
+  return personalize(`Hi {contactName}, I’m John from King JohnKay Fundz. I came across {companyName} and noticed an opportunity to strengthen its online presence with a {recommendedService}.
+
+This could make it easier for customers to discover the business, understand what it offers and send enquiries.
 
 If useful, I can send you a quick idea for {companyName}.`)
 }

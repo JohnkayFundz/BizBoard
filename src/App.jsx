@@ -128,7 +128,7 @@ export default function App(){
   const vars={contactName:l?.contact_name?.trim()?.split(/\s+/)[0]||'there',companyName,opportunityScore:String(analysis?.score??'—'),recommendedService:analysis?.recommended_service||'Business Website',estimatedValue:analysis?.estimated_value?money(analysis.estimated_value):'',opportunityAngle,salesAngle:analysis?.sales_angle||analysis?.salesAngle||opportunityAngle,keyFindings:findings||'No additional findings recorded.',keyOpportunities:opportunities.join('; '),location:l?.location||'Lagos',website:l?.website||'',websiteContext:l?.website?'existing website':'online presence'}
   return template.replace(/{{\s*([a-z_]+)\s*}}|{\s*([A-Za-z]+(?:_[A-Za-z]+)*)\s*}/g,(_,legacy,key)=>{
     const map={contact_name:'contactName',company_name:'companyName',opportunity_score:'opportunityScore',recommended_service:'recommendedService',estimated_value:'estimatedValue',opportunity_angle:'opportunityAngle',sales_angle:'salesAngle',key_findings:'keyFindings',key_opportunities:'keyOpportunities',website_context:'websiteContext'}
-    const resolved=key||map[legacy]
+    const resolved=key?(map[key]||key):map[legacy]
     return resolved in vars?String(vars[resolved]??''):''
   })
 }

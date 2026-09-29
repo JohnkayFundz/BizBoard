@@ -131,17 +131,37 @@ export default function App(){
   })
 }
 function outreachTemplate(l,channel){
-  if(channel==='Email')return interpolateTemplate(`Hi {contactName},
+  const analysis=proposalAnalyses[l?.id]||(intelResult&&intelLead?.id===l?.id?intelResult:null)
+  const opportunity=analysis?.opportunities?.find(Boolean)||''
+  const finding=analysis?.findings?.find(Boolean)||''
+  const service=analysis?.recommended_service||'Business Website'
+  const value=analysis?.estimated_value?money(analysis.estimated_value):''
+  const angle=opportunity||finding||'a stronger online presence and customer enquiry journey'
+  const hasWebsite=Boolean(l?.website)
+  const websiteContext=hasWebsite?'existing website':'online presence'
+  const vars={opportunityAngle:angle.replace(/^•\s*/,''),recommendedService:service,estimatedValue:value,websiteContext}
+  const personalize=(template)=>interpolateTemplate(template,l)
+    .replace(/\{opportunityAngle\}/g,String(vars.opportunityAngle))
+    .replace(/\{recommendedService\}/g,String(vars.recommendedService))
+    .replace(/\{estimatedValue\}/g,String(vars.estimatedValue))
+    .replace(/\{websiteContext\}/g,String(vars.websiteContext))
+  if(channel==='Email')return personalize(`Hi {contactName},
 
-I came across {companyName} and wanted to reach out. I’m a web developer based in Lagos, and I help businesses establish modern, mobile-friendly websites and stronger online customer journeys.
+I came across {companyName} and wanted to reach out. I’m John from King JohnKay Fundz, a web developer based in Lagos.
 
-I have a quick idea that could help {companyName} strengthen its online presence and make it easier for customers to discover and contact the business. You currently have a {opportunityType}, and I’d be happy to share the idea if you’re open to it.
+I noticed an opportunity around {opportunityAngle}. I believe a {recommendedService} could help {companyName} present its business more clearly online and make it easier for customers to enquire.
+
+I’d be happy to share the idea and, if useful, a quick example of what I would build. Would you be open to a short conversation?
 
 Best,
 John
-King JohnKay Fundz`,l)
-  if(channel==='Instagram')return interpolateTemplate(`Hi {contactName} 👋 I came across {companyName} and wanted to reach out. I build modern, mobile-friendly websites that help businesses present their offerings professionally online. I noticed a {opportunityType} and can share a quick idea for {companyName} if you’re interested. — JohnKay Fundz`,l)
-  return interpolateTemplate(`Hi {contactName}, I’m John from King JohnKay Fundz. I came across {companyName} and wanted to ask about your {opportunityType}. I can share a quick website idea for {companyName} if useful.`,l)
+King JohnKay Fundz`)
+  if(channel==='Instagram')return personalize(`Hi {contactName} 👋 I came across {companyName} and wanted to reach out. I noticed an opportunity around {opportunityAngle}. I build {recommendedService} solutions that make it easier for customers to discover a business and enquire.
+
+If you’re interested, I can send you a quick idea for {companyName}. — JohnKay Fundz`)
+  return personalize(`Hi {contactName}, I’m John from King JohnKay Fundz. I came across {companyName} and noticed an opportunity around {opportunityAngle}. A {recommendedService} could help improve the {websiteContext} and customer enquiry journey.
+
+If useful, I can send you a quick idea for {companyName}.`)
 }
 function openOutreach(l){
   setOutreachLead(l);setOutreachChannel(l?.email?'Email':l?.instagram?'Instagram':'WhatsApp');setOutreachCopied(false)

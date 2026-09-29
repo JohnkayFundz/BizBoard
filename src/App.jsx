@@ -135,15 +135,13 @@ export default function App(){
 
 async function resolveOutreachAnalysis(l){
   const cached=proposalAnalyses[l?.id]||(intelResult&&intelLead?.id===l?.id?intelResult:null)
-  if(cached)return cached
-  if(!supabase||!l?.id)return null
-  const {data}=await supabase.from('crm_intelligence_reports').select('score,checklist,key_findings,key_opportunities,sales_angle,recommended_service,estimated_value').eq('lead_id',l.id).order('created_at',{ascending:false}).limit(1).maybeSingle()
-  if(!data)return null
+  if(!supabase||!l?.id)return cached||null
+  const {data,error}=await supabase.from('crm_intelligence_reports').select('score,checklist,key_findings,key_opportunities,sales_angle,recommended_service,estimated_value').eq('lead_id',l.id).order('created_at',{ascending:false}).limit(1).maybeSingle()
+  if(error||!data)return cached||null
   const analysis={score:data.score,checks:data.checklist,findings:data.key_findings||[],opportunities:data.key_opportunities||[],sales_angle:data.sales_angle||'',recommended_service:data.recommended_service||'Business Website',estimated_value:Number(data.estimated_value||0)}
   setProposalAnalyses(x=>({...x,[l.id]:analysis}))
   return analysis
 }
-
 function outreachTemplate(l,channel,analysisOverride=null){
   const analysis=analysisOverride||proposalAnalyses[l?.id]||(intelResult&&intelLead?.id===l?.id?intelResult:null)
   const personalize=(template)=>interpolateTemplate(template,l,analysis)

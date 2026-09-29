@@ -9,8 +9,8 @@ export function buildWhatsAppUrl(phone: string, message: string): string {
   return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`
 }
 
-export function buildMailtoUrl(email: string, subject: string, message: string): string {
-  return `mailto:${email.trim()}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(message)}`
+export function buildMailtoUrl(email: string | null | undefined, subject: string, message: string): string {
+  return `mailto:${String(email ?? '').trim()}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(message)}`
 }
 
 export function buildInstagramInboxUrl(): string {

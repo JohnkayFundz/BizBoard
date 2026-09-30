@@ -6,7 +6,13 @@ export const FOLLOW_UP_METHODS = ['Call','Email','Instagram','WhatsApp','Meeting
 export type FollowUpMethod = typeof FOLLOW_UP_METHODS[number]
 export const FOLLOW_UP_OUTCOMES = ['Interested','Needs follow-up','No response','Not interested'] as const
 export type FollowUpOutcome = typeof FOLLOW_UP_OUTCOMES[number]
-export interface Lead { id:string; user_id?:string; company:string; contact_name:string|null; role:string|null; email:string|null; phone:string|null; website:string|null; instagram:string|null; niche:string|null; location:string|null; source:string|null; status:LeadStage; deal_value:number|string|null; next_follow_up:string|null; notes:string|null; created_at?:string; updated_at?:string }
+export const SEQUENCE_STATUSES = ['active','paused','completed','stopped_replied'] as const
+export type SequenceStatus = typeof SEQUENCE_STATUSES[number]
+export const INITIAL_OUTREACH_STATUSES = ['not_sent','draft','sent','failed'] as const
+export type InitialOutreachStatus = typeof INITIAL_OUTREACH_STATUSES[number]
+export interface InitialOutreach { channel:string|null; sent_at:string|null; message_text:string|null; status:InitialOutreachStatus }
+export interface FollowUpRecord { sequence_number:number; scheduled_for:string|null; sent_at:string|null; status:string; channel:string|null; message_text:string|null }
+export interface Lead { id:string; user_id?:string; company:string; contact_name:string|null; role:string|null; email:string|null; phone:string|null; website:string|null; instagram:string|null; niche:string|null; location:string|null; source:string|null; status:LeadStage; deal_value:number|string|null; next_follow_up:string|null; notes:string|null; initial_outreach:InitialOutreach; follow_ups:FollowUpRecord[]; sequence_status:SequenceStatus; created_at?:string; updated_at?:string }
 export interface LeadActivity { id:number|string; lead_id:string; activity_type:string; note:string; created_at:string }
 export interface IntelligenceChecks { mobile:boolean; cta:boolean; contact:boolean; ecommerce:boolean; seo:boolean }
 export interface IntelligenceResult { success:boolean; url:string; response_ms?:number; status?:number; title?:string; description?:string; checks:IntelligenceChecks; score:number; findings:string[]; opportunities:string[]; recommended_service:string; estimated_value:number }

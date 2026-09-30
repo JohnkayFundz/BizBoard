@@ -46,7 +46,7 @@ type ActionCenterProps = {
   money: (value: number) => string
 }
 
-export function ActionCenter({ leads, metrics, followUps, openActivity, openOutreach, setForm, setModal, empty, money }: ActionCenterProps) {
+export function ActionCenter({ leads, metrics, followUps, openActivity, onReviewFollowUp, openOutreach, setForm, setModal, empty, money }: ActionCenterProps) {
   const overdue: Lead[] = followUps?.overdue || []
   const today: Lead[] = followUps?.today || []
   const activeNeedingAction = leads

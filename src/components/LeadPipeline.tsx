@@ -78,7 +78,7 @@ export function LeadPipeline({ filtered, sorted, paged, safePage, setPage, pageC
         <Select icon={<Filter />} value={status} set={setStatus} options={['All', ...stages]} ariaLabel="Filter by stage" />
         <Select value={source} set={setSource} options={['All', ...sources]} ariaLabel="Filter by source" />
         <Select value={followUpFilter} set={setFollowUpFilter} options={['All', 'Due', 'Overdue', 'Due Today', 'Upcoming', 'No Follow-up']} ariaLabel="Filter by follow-up" />
-        <Select value={sortKey} === 'score' ? 'Lead score (High → Low)' : 'Latest updated'} set={value => sortBy(value === 'Lead score (High → Low)' ? 'score' : 'updated_at')} options={['Latest updated', 'Lead score (High → Low)']} ariaLabel="Sort leads" />
+        <Select value={sortKey === 'score' ? 'Lead score (High → Low)' : 'Latest updated'} set={value => sortBy(value === 'Lead score (High → Low)' ? 'score' : 'updated_at')} options={['Latest updated', 'Lead score (High → Low)']} ariaLabel="Sort leads" />
       </div>
 
       <div className="table">

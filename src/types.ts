@@ -8,7 +8,7 @@ export const FOLLOW_UP_OUTCOMES = ['Interested','Needs follow-up','No response',
 export type FollowUpOutcome = typeof FOLLOW_UP_OUTCOMES[number]
 export const SEQUENCE_STATUSES = ['active','paused','completed','stopped_replied'] as const
 export type SequenceStatus = typeof SEQUENCE_STATUSES[number]
-export const INITIAL_OUTREACH_STATUSES = ['not_sent','draft','sent','failed'] as const
+export const INITIAL_OUTREACH_STATUSES = ['not_sent','draft','initiated','sent','failed'] as const
 export type InitialOutreachStatus = typeof INITIAL_OUTREACH_STATUSES[number]
 export interface InitialOutreach { channel:string|null; sent_at:string|null; message_text:string|null; status:InitialOutreachStatus }
 export interface FollowUpRecord { sequence_number:number; scheduled_for:string|null; sent_at:string|null; status:string; channel:string|null; message_text:string|null }

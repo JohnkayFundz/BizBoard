@@ -5,6 +5,7 @@ import { assessIntelligence, EMPTY_INTELLIGENCE_CHECKS } from '../utils/intellig
 import type { IntelligenceChecks } from '../types/crm'
 import type { IntelligenceReport } from '../types/intelligence'
 import { env } from '../lib/env'
+import { normalizeContactAddresses } from '../utils/contactIntel'
 
 type Lead={id:string|number;company?:string|null;contact_name?:string|null;email?:string|null;phone?:string|null;instagram?:string|null;website?:string|null;niche?:string|null;location?:string|null;status?:string|null}
 type Analysis={score?:number;recommended_service?:string;estimated_value?:number;response_ms?:number}
@@ -49,7 +50,13 @@ export function LeadIntelligence({leads,intelLead,setIntelLead,intelUrl,setIntel
    const presence=Array.isArray(data?.other_online_presence)?data.other_online_presence as WebsiteCandidate[]:[]
    setWebsiteCandidates(candidates)
    setOtherOnlinePresence(presence)
-   if(data?.contact_intelligence) setContactIntel(data.contact_intelligence as ContactIntel)
+   if(data?.contact_intelligence){
+    const rawContactIntel=data.contact_intelligence as ContactIntel
+    setContactIntel({
+     ...rawContactIntel,
+     addresses:normalizeContactAddresses(rawContactIntel.addresses),
+    })
+   }
    if(typeof data?.searched==='number'&&typeof data?.discovered==='number') setResolverDiagnostics({searched:data.searched,discovered:data.discovered})
    setResolverMessage(data?.message|| (candidates.length?'Official website candidates found. Review the match before saving.':presence.length?'No official website was verified. Other online presence was found and classified separately.':'No live candidate website was found. You can search manually using the business name and location.'))
   }catch(error){

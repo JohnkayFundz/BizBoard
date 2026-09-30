@@ -54,10 +54,12 @@ interface Props {
   selectedIds: Array<string | number>
   setSelectedIds: (ids: Array<string | number>) => void
   onGenerateCampaign: () => void
+  followUpFilter: string
+  setFollowUpFilter: (value: string) => void
   empty: Record<string, unknown>
 }
 
-export function LeadPipeline({ filtered, sorted, paged, safePage, setPage, pageCount, pageSize, query, setQuery, status, setStatus, source, setSource, sources, stages, tone, sortBy, sortKey, move, today, money, contactAction, openActivity, edit, remove, setForm, setModal, empty }: Props) {
+export function LeadPipeline({ filtered, sorted, paged, safePage, setPage, pageCount, pageSize, query, setQuery, status, setStatus, source, setSource, sources, stages, tone, sortBy, sortKey, move, today, money, contactAction, openActivity, edit, remove, setForm, setModal, empty, followUpFilter, setFollowUpFilter }: Props) {
   const safeQuery = String(query ?? '')
   const hasFilters = Boolean(safeQuery.trim() || status !== 'All' || source !== 'All' || followUpFilter !== 'All')
   return (
@@ -75,7 +77,8 @@ export function LeadPipeline({ filtered, sorted, paged, safePage, setPage, pageC
         </label>
         <Select icon={<Filter />} value={status} set={setStatus} options={['All', ...stages]} ariaLabel="Filter by stage" />
         <Select value={source} set={setSource} options={['All', ...sources]} ariaLabel="Filter by source" />
-        <Select value={sortKey === 'score' ? 'Lead score (High → Low)' : 'Latest updated'} set={value => sortBy(value === 'Lead score (High → Low)' ? 'score' : 'updated_at')} options={['Latest updated', 'Lead score (High → Low)']} ariaLabel="Sort leads" />
+        <Select value={followUpFilter} set={setFollowUpFilter} options={['All', 'Due', 'Overdue', 'Due Today', 'Upcoming', 'No Follow-up']} ariaLabel="Filter by follow-up" />
+        <Select value={sortKey} === 'score' ? 'Lead score (High → Low)' : 'Latest updated'} set={value => sortBy(value === 'Lead score (High → Low)' ? 'score' : 'updated_at')} options={['Latest updated', 'Lead score (High → Low)']} ariaLabel="Sort leads" />
       </div>
 
       <div className="table">

@@ -21,7 +21,7 @@ interface Props{
  onLeadUpdated:(lead:Lead)=>void
 }
 
-export function LeadIntelligence({leads,intelLead,setIntelLead,intelUrl,setIntelUrl,setIntelReport,setIntelResult,setIntelChecks,intelChecks,saveLeadWebsite,analyzeWebsite,intelAnalyzing,intelGenerating,generateIntelligence,intelResult,intelReport,copyIntelligence,intelCopied,intelligenceHistory,applyIntelligenceReport,onGenerateProposalFromOpportunity}:Props){
+export function LeadIntelligence({leads,intelLead,setIntelLead,intelUrl,setIntelUrl,setIntelReport,setIntelResult,setIntelChecks,intelChecks,saveLeadWebsite,analyzeWebsite,intelAnalyzing,intelGenerating,generateIntelligence,intelResult,intelReport,copyIntelligence,intelCopied,intelligenceHistory,applyIntelligenceReport,onGenerateProposalFromOpportunity,onLeadUpdated}:Props){
  const [websiteCandidates,setWebsiteCandidates]=useState<WebsiteCandidate[]>([])
  const [otherOnlinePresence,setOtherOnlinePresence]=useState<WebsiteCandidate[]>([])
  const [contactIntel,setContactIntel]=useState<ContactIntel|null>(null)
@@ -39,6 +39,7 @@ export function LeadIntelligence({leads,intelLead,setIntelLead,intelUrl,setIntel
   setResolverDiagnostics(null)
   setWebsiteCandidates([])
   setOtherOnlinePresence([])
+  setContactIntel(null)
   try{
    if(!supabase){setResolverMessage('Supabase environment is not configured.');return}
    const {data,error}=await supabase.functions.invoke('resolve-website',{body:{business_name:intelLead.company||'',contact_name:intelLead.contact_name||'',location:intelLead.location||'',email:intelLead.email||''}})

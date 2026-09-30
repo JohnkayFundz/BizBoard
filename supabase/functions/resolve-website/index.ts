@@ -537,11 +537,14 @@ Deno.serve(async (req: Request) => {
 
     const contactSources = [...allCandidatesWithFallback]
       .filter(candidate =>
-        candidate.contacts.emails.length ||
-        candidate.contacts.phones.length ||
-        candidate.contacts.instagram.length ||
-        candidate.contacts.social_profiles.length ||
-        candidate.contacts.addresses.length
+        candidate.score >= 65 &&
+        (
+          candidate.contacts.emails.length ||
+          candidate.contacts.phones.length ||
+          candidate.contacts.instagram.length ||
+          candidate.contacts.social_profiles.length ||
+          candidate.contacts.addresses.length
+        )
       )
       .sort((a, b) => {
         const aWeight = a.source_type === 'unknown' ? 20 : 0

@@ -6,7 +6,7 @@ import type { IntelligenceChecks } from '../types/crm'
 import type { IntelligenceReport } from '../types/intelligence'
 import { env } from '../lib/env'
 
-type Lead={id:string|number;company?:string|null;contact_name?:string|null;email?:string|null;website?:string|null;niche?:string|null;location?:string|null;status?:string|null}
+type Lead={id:string|number;company?:string|null;contact_name?:string|null;email?:string|null;phone?:string|null;instagram?:string|null;website?:string|null;niche?:string|null;location?:string|null;status?:string|null}
 type Analysis={score?:number;recommended_service?:string;estimated_value?:number;response_ms?:number}
 type WebsiteCandidate={url:string;domain:string;status:number|null;title:string;confidence:'verified'|'likely'|'unverified';score:number;reason:string;source_type?:'official_website'|'social_profile'|'directory'|'marketplace'|'portfolio'|'news_media'|'unknown'}
 type ContactIntel={emails:string[];phones:string[];instagram:string[];social_profiles:string[];sources:Array<{url:string;domain:string;source_type:string;confidence:string;score:number;title:string}>}

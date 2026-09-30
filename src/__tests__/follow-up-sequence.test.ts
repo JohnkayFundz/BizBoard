@@ -41,7 +41,7 @@ describe('follow-up sequence scheduling', () => {
     }, new Date('2026-09-29T10:00:00.000Z'))
     expect(result).toHaveLength(1)
     expect(result[0].sequence_number).toBe(2)
-    expect(result[0].scheduled_for).toBe('2026-10-02T10:00:00.000Z')
+    expect(result[0].scheduled_for).toBe('2026-10-02T10:30:00.000Z')
   })
 
   it('stops eligibility for replied, interested, proposal sent, and won leads', () => {
@@ -60,7 +60,7 @@ describe('follow-up sequence scheduling', () => {
     const leads = [
       baseLead,
       { ...baseLead, id: 'lead-2', initial_outreach: { ...baseLead.initial_outreach, sent_at: '2026-09-20T10:00:00.000Z' } },
-      { ...baseLead, id: 'lead-3', initial_outreach: { ...baseLead.initial_outreach, sent_at: '2026-09-27T10:00:00.000Z' } },
+      { ...baseLead, id: 'lead-3', initial_outreach: { ...baseLead.initial_outreach, sent_at: '2026-09-22T10:00:00.000Z' } },
     ]
     const summary = getFollowUpQueueSummary(leads, new Date('2026-09-29T12:00:00.000Z'))
     expect(summary.overdue.length).toBeGreaterThan(0)

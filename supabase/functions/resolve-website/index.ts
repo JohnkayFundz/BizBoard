@@ -24,7 +24,7 @@ type Candidate = {
 function classifyHost(hostname: string, title = ''): Candidate['source_type'] {
   const host = hostname.toLowerCase().replace(/^www\\./, '')
   const social = ['facebook.com','instagram.com','linkedin.com','twitter.com','x.com','youtube.com','tiktok.com','wa.me','whatsapp.com']
-  const directories = ['wikipedia.org','foursquare.com','tripadvisor.com','yelp.com','yellowpages.com','hotfrog.com','finelib.com','businesslist.com.ng','connectnigeria.com','vconnect.com','ngex.com','directory']
+  const directories = ['wikipedia.org','foursquare.com','tripadvisor.com','yelp.com','yellowpages.com','hotfrog.com','finelib.com','businesslist.com.ng','connectnigeria.com','vconnect.com','ngex.com','nigeriapropertycentre.com','estateagentsng.com','propertypro.ng','directory']
   const marketplaces = ['jiji.ng','jumia.com.ng','konga.com','propertypro.ng','privateproperty.com.ng','cars45.com','autochek.africa']
   const media = ['bbc.com','cnn.com','reuters.com','guardian.ng','punchng.com','vanguardngr.com','thisdaylive.com','tribuneonlineng.com','premiumtimesng.com','businessday.ng','nairaland.com']
   if (social.some(d => host === d || host.endsWith('.' + d))) return 'social_profile'
@@ -159,13 +159,17 @@ function isLowValueHost(hostname: string, title = '') {
     || /\b(news|radio|newspaper|breaking news|live radio)\b/i.test(title)
 }
 
-function isExcludedHost(hostname: string) {
+function isHardExcludedHost(hostname: string) {
   const host = hostname.toLowerCase().replace(/^www\./, '')
   return [
     'google.com',
     'googleusercontent.com',
     'bing.com',
     'duckduckgo.com',
+    'microsoft.com',
+    'support.microsoft.com',
+    'messenger.com',
+    'meta.com',
     'facebook.com',
     'instagram.com',
     'linkedin.com',
@@ -204,7 +208,8 @@ function extractSearchLinks(html: string, engine: 'ddg' | 'bing', allowPublicLis
       }
       const url = new URL(href)
       if (!['http:', 'https:'].includes(url.protocol)) continue
-      if (!allowPublicListingHosts && isExcludedHost(url.hostname)) continue
+      if (isHardExcludedHost(url.hostname)) continue
+      if (!allowPublicListingHosts && ['facebook.com','instagram.com','linkedin.com','twitter.com','x.com','youtube.com','tiktok.com','wa.me','whatsapp.com'].some(domain => { const host = url.hostname.toLowerCase().replace(/^www\\./, ''); return host === domain || host.endsWith('.' + domain) })) continue
       const normalized = url.origin + url.pathname.replace(/\/$/, '')
       if (!seen.has(normalized)) {
         seen.add(normalized)
@@ -280,7 +285,7 @@ async function fetchJinaSearch(queryText: string): Promise<{ results: Array<{ ur
       if (!rawUrl) continue
       try {
         const url = new URL(rawUrl)
-        if (!['http:', 'https:'].includes(url.protocol) || isExcludedHost(url.hostname)) continue
+        if (!['http:', 'https:'].includes(url.protocol) || isHardExcludedHost(url.hostname)) continue
         const normalized = url.origin + url.pathname.replace(/\/$/, '')
         if (seen.has(normalized)) continue
         seen.add(normalized)

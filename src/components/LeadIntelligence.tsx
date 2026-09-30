@@ -96,7 +96,7 @@ export function LeadIntelligence({leads,intelLead,setIntelLead,intelUrl,setIntel
      <div style={{display:'grid',gap:7}}>
       {contactIntel.emails.map(email=><div key={email} style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}><Mail/><a href={'mailto:'+email}>{email}</a></div>)}
       {contactIntel.phones.map(phone=><div key={phone} style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}><Phone/><a href={'tel:'+phone}>{phone}</a></div>)}
-      {contactIntel.instagram.map(url=><div key={url} style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}><Instagram/><a href={url} target="_blank" rel="noreferrer">{url.replace(/^https?:\\/\\/(?:www\\.)?instagram\\.com\\//i,'@')}</a></div>)}
+       {contactIntel.instagram.map(url=><div key={url} style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}><Instagram/><a href={url} target="_blank" rel="noreferrer">{url.replace(/^https?:\/\/(?:www\.)?instagram\.com\//i,'@')}</a></div>)}
       {(contactIntel.addresses||[]).map(address=><div key={address} style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}><Globe2/><span>{address}</span></div>)}
       {!contactIntel.emails.length&&!contactIntel.phones.length&&!contactIntel.instagram.length&&!(contactIntel.addresses||[]).length&&<small>No public contact channels found across web listings. Add contact details manually.</small>}
      </div>

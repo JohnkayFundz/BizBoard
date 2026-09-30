@@ -140,7 +140,7 @@ async function completeFollowUp(){
  function activityLabel(type){return type==='Stage change'?'Stage update':type}
  function interpolateTemplate(template,l,analysisOverride=null){
   const analysis=analysisOverride||proposalAnalyses[l?.id]||(intelResult&&intelLead?.id===l?.id?intelResult:null)
-  const companyName=String(l?.company||'your business').replace(/\s*[—-]\s*Website\s*$/i,'')
+  const companyName=String(l?.company||'your business').replace(/\s*[—-]\s*Website\s*$/i,'').replace(/[.!?]+\s*$/,'').trim()
   const findings=(analysis?.findings||[]).filter(Boolean).map(x=>String(x).replace(/^•\s*/, '').trim())
   const opportunities=(analysis?.opportunities||[]).filter(Boolean).map(x=>String(x).replace(/^•\s*/, '').trim())
   const firstFinding=findings[0]||''

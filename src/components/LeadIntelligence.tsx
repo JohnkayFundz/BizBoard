@@ -19,7 +19,7 @@ interface Props{
  intelResult:Analysis|null; intelReport:string; copyIntelligence:()=>void; intelCopied:boolean
  intelligenceHistory:IntelligenceReport[]; applyIntelligenceReport:(report:IntelligenceReport)=>void; onGenerateProposalFromOpportunity:(report:IntelligenceReport)=>void
  onLeadUpdated:(lead:Lead)=>void
- onUseContactIntel:(lead:Lead,contacts:ContactIntel)=>void
+ onUseContactIntel?:(lead:Lead,contacts:ContactIntel)=>void
 }
 
 export function LeadIntelligence({leads,intelLead,setIntelLead,intelUrl,setIntelUrl,setIntelReport,setIntelResult,setIntelChecks,intelChecks,saveLeadWebsite,analyzeWebsite,intelAnalyzing,intelGenerating,generateIntelligence,intelResult,intelReport,copyIntelligence,intelCopied,intelligenceHistory,applyIntelligenceReport,onGenerateProposalFromOpportunity,onLeadUpdated}:Props){
@@ -97,7 +97,7 @@ export function LeadIntelligence({leads,intelLead,setIntelLead,intelUrl,setIntel
      {!contactIntel.emails.length&&!contactIntel.phones.length&&!contactIntel.instagram.length&&!(contactIntel.addresses||[]).length&&<small>No public contact channels found across web listings. Add contact details manually.</small>}
     </div>
     {(contactIntel.emails.length||contactIntel.phones.length||contactIntel.instagram.length)&&<div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
-      <button type="button" className="primary" onClick={()=>onUseContactIntel(intelLead,contactIntel)}><Send/>Use for Outreach</button>
+      <button type="button" className="primary" onClick={()=>onUseContactIntel?.(intelLead,contactIntel)}><Send/>Use for Outreach</button>
       <button type="button" className="secondary" onClick={saveContactIntel} disabled={savingContacts}><Save/>{savingContacts?'Saving…':'Save contact details'}</button>
       <small>{intelLead?.email||intelLead?.phone||intelLead?.instagram?'Existing lead details will be kept.':'Use for Outreach can pass the discovered contact directly into the outreach composer.'}</small>
     </div>}

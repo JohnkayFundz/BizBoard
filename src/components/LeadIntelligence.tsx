@@ -87,25 +87,36 @@ export function LeadIntelligence({leads,intelLead,setIntelLead,intelUrl,setIntel
    {resolverMessage&&<div className="intelHint" style={{marginTop:8}}><Globe2/>{resolverMessage}{resolverDiagnostics&&<small style={{display:'block',marginTop:4}}>Diagnostic: {resolverDiagnostics.discovered} web results discovered · {resolverDiagnostics.searched} direct domains checked.</small>}</div>}
    {websiteCandidates.length>0&&<div className="intelLeadSummary" style={{display:'grid',gap:8,marginTop:10}}><strong>Official website candidates</strong>{websiteCandidates.map(candidate=><div key={candidate.url} style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,flexWrap:'wrap'}}><div style={{minWidth:0}}><span style={{display:'block',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{candidate.domain}</span><small style={{display:'block',marginTop:3}}>{candidate.confidence} · {candidate.reason}</small></div><div style={{display:'flex',gap:6}}><button type="button" className="secondary" onClick={()=>setWebsite(candidate.url)}>Use</button><button type="button" className="secondary" title="Open candidate" onClick={()=>window.open(candidate.url,'_blank','noopener,noreferrer')}><ExternalLink/></button></div></div>)}</div>}
    {otherOnlinePresence.length>0&&<div className="intelLeadSummary" style={{display:'grid',gap:8,marginTop:10}}><strong>Other online presence</strong><small>These results are not treated as the business's official website.</small>{otherOnlinePresence.map(candidate=><div key={candidate.url} style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,flexWrap:'wrap'}}><div style={{minWidth:0}}><span style={{display:'block',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{candidate.domain}</span><small style={{display:'block',marginTop:3}}>{candidate.source_type?.replace('_',' ')} · {candidate.reason}</small></div><button type="button" className="secondary" title="Open result" onClick={()=>window.open(candidate.url,'_blank','noopener,noreferrer')}><ExternalLink/></button></div>)}</div>}
-   {contactIntel&&<div className="intelLeadSummary" style={{display:'grid',gap:10,marginTop:10}}>
-    <div><strong>Contact Intelligence</strong><small style={{display:'block',marginTop:3}}>Public contact channels discovered from websites, directories and social profiles. Review before using.</small></div>
-    <div style={{display:'grid',gap:7}}>
-     {contactIntel.emails.map(email=><div key={email} style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}><Mail/><a href={'mailto:'+email}>{email}</a></div>)}
-     {contactIntel.phones.map(phone=><div key={phone} style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}><Phone/><a href={'tel:'+phone}>{phone}</a></div>)}
-     {contactIntel.instagram.map(url=><div key={url} style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}><Instagram/><a href={url} target="_blank" rel="noreferrer">{url.replace(/^https?:\/\/(?:www\.)?instagram\.com\//i,'@')}</a></div>)}
-     {(contactIntel.addresses||[]).map(address=><div key={address} style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}><Globe2/><span>{address}</span></div>)}
-     {!contactIntel.emails.length&&!contactIntel.phones.length&&!contactIntel.instagram.length&&!(contactIntel.addresses||[]).length&&<small>No public contact channels found across web listings. Add contact details manually.</small>}
+   {contactIntel && (
+    <div className="intelLeadSummary" style={{display:'grid',gap:10,marginTop:10}}>
+     <div>
+      <strong>Contact Intelligence</strong>
+      <small style={{display:'block',marginTop:3}}>Public contact channels discovered from websites, directories and social profiles. Review before using.</small>
+     </div>
+     <div style={{display:'grid',gap:7}}>
+      {contactIntel.emails.map(email=><div key={email} style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}><Mail/><a href={'mailto:'+email}>{email}</a></div>)}
+      {contactIntel.phones.map(phone=><div key={phone} style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}><Phone/><a href={'tel:'+phone}>{phone}</a></div>)}
+      {contactIntel.instagram.map(url=><div key={url} style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}><Instagram/><a href={url} target="_blank" rel="noreferrer">{url.replace(/^https?:\\/\\/(?:www\\.)?instagram\\.com\\//i,'@')}</a></div>)}
+      {(contactIntel.addresses||[]).map(address=><div key={address} style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}><Globe2/><span>{address}</span></div>)}
+      {!contactIntel.emails.length&&!contactIntel.phones.length&&!contactIntel.instagram.length&&!(contactIntel.addresses||[]).length&&<small>No public contact channels found across web listings. Add contact details manually.</small>}
+     </div>
+     {(contactIntel.emails.length||contactIntel.phones.length||contactIntel.instagram.length) && (
+      <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+       <button type="button" className="primary" onClick={()=>onUseContactIntel(intelLead,contactIntel)}><Send/>Use for Outreach</button>
+       <button type="button" className="secondary" onClick={saveContactIntel} disabled={savingContacts}><Save/>{savingContacts?'Saving…':'Save contact details'}</button>
+       <small>{intelLead?.email||intelLead?.phone||intelLead?.instagram?'Existing lead details will be kept.':'Use for Outreach can pass the discovered contact directly into the outreach composer.'}</small>
+      </div>
+     )}
+     {contactIntel.sources.length>0 && (
+      <div style={{display:'grid',gap:4}}>
+       <small>Sources checked:</small>
+       {contactIntel.sources.slice(0,6).map(source=>(
+        <small key={source.url}><span>{source.label||source.source_type}</span> · <a href={source.url} target="_blank" rel="noreferrer">{source.domain}</a>{source.title?' · '+source.title:''}</small>
+       ))}
+      </div>
+     )}
     </div>
-    {(contactIntel.emails.length||contactIntel.phones.length||contactIntel.instagram.length)&&<div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
-      <button type="button" className="primary" onClick={()=>onUseContactIntel(intelLead,contactIntel)}><Send/>Use for Outreach</button>
-      <button type="button" className="secondary" onClick={saveContactIntel} disabled={savingContacts}><Save/>{savingContacts?'Saving…':'Save contact details'}</button>
-      <small>{intelLead?.email||intelLead?.phone||intelLead?.instagram?'Existing lead details will be kept.':'Use for Outreach can pass the discovered contact directly into the outreach composer.'}</small>
-    </div>}
-    {contactIntel.sources.length>0&&<div style={{display:'grid',gap:4}}>
-      <small>Sources checked:</small>
-      {contactIntel.sources.slice(0,6).map((source,index)=><small key={source.url}><span>{source.label||source.source_type}</span> · <a href={source.url} target="_blank" rel="noreferrer">{source.domain}</a>{source.title?' · '+source.title:''}</small>)}
-    </div>
-   </div>}
+   )}
    {intelLead&&<div className="intelLeadSummary"><strong>{intelLead.company}</strong><span>{intelLead.niche||'Business prospect'}{intelLead.location?' · '+intelLead.location:''}</span></div>}
    <div className="intelScoreCard">{hasWebsite?<><div><small>OPPORTUNITY SCORE</small><strong>{assessment.score}/5</strong></div><div><small>RECOMMENDED SERVICE</small><strong>{assessment.recommendedService}</strong></div></>:<><div><small>OPPORTUNITY AREAS</small><strong>5/5</strong></div><div><small>OPPORTUNITY TYPE</small><strong>New website</strong></div></>}<div><small>ESTIMATED VALUE</small><strong>₦{assessment.estimatedValue.toLocaleString('en-NG')}</strong></div></div>
    {hasWebsite ? <div className="intelChecks"><strong>Website audit checklist</strong>{[['mobile','Mobile-first experience'],['cta','Clear call-to-action'],['contact','Contact / WhatsApp options'],['ecommerce','E-commerce capability'],['seo','Basic SEO setup']].map(([k,label])=><label className="checkRow" key={k}><input type="checkbox" checked={Boolean(intelChecks[k as keyof IntelligenceChecks])} onChange={e=>setIntelChecks(x=>({...x,[k]:e.target.checked}))}/><span>{label}</span></label>)}</div> : <div className="intelChecks"><strong>Potential website capabilities</strong>{['Mobile-first experience','Clear call-to-action','Contact / WhatsApp options','E-commerce capability','Basic SEO setup'].map(label=><div className="checkRow" key={label}><span className="checkMark">✓</span><span>{label}</span></div>)}</div>}

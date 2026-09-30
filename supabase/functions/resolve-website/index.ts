@@ -5,6 +5,8 @@ type ContactInfo = {
   phones: string[]
   instagram: string[]
   social_profiles: string[]
+  addresses: string[]
+  sources: Array<{ url: string; domain: string; source_type: Candidate['source_type']; title: string }>
 }
 
 type Candidate = {
@@ -76,6 +78,7 @@ function extractContactInfo(html: string, baseUrl: string): ContactInfo {
   const phones = new Set<string>()
   const instagram = new Set<string>()
   const social = new Set<string>()
+  const addresses = new Set<string>()
 
   for (const match of html.matchAll(/(?:mailto:)?([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})/gi)) {
     const value = String(match[1] || '').toLowerCase().replace(/[),.;:]+$/, '')
@@ -112,11 +115,24 @@ function extractContactInfo(html: string, baseUrl: string): ContactInfo {
     } catch {}
   }
 
+  const addressPatterns = [
+    /(?:address|location|office|head office|contact us)\s*[:\-–]?\s*([^|\n]{8,180})/gi,
+    /(?:Lagos|Abuja|Port Harcourt|Ibadan|Kano|Benin City|Nigeria)[^|\n]{0,120}/gi,
+  ]
+  for (const pattern of addressPatterns) {
+    for (const match of text.matchAll(pattern)) {
+      const value = String(match[1] || match[0] || '').replace(/\s+/g, ' ').trim()
+      if (value.length >= 8 && value.length <= 180 && !/^(phone|email|instagram)\b/i.test(value)) addresses.add(value)
+    }
+  }
+
   return {
     emails: [...emails].slice(0, 5),
     phones: [...phones].slice(0, 5),
     instagram: [...instagram].slice(0, 3),
     social_profiles: [...social].slice(0, 8),
+    addresses: [...addresses].slice(0, 5),
+    sources: [],
   }
 }
 
@@ -162,7 +178,7 @@ function isExcludedHost(hostname: string) {
   ].some(domain => host === domain || host.endsWith('.' + domain))
 }
 
-function extractSearchLinks(html: string, engine: 'ddg' | 'bing') {
+function extractSearchLinks(html: string, engine: 'ddg' | 'bing', allowPublicListingHosts = false) {
   const results: Array<{ url: string; title: string }> = []
   const seen = new Set<string>()
   const pattern = /<a[^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi
@@ -188,7 +204,7 @@ function extractSearchLinks(html: string, engine: 'ddg' | 'bing') {
       }
       const url = new URL(href)
       if (!['http:', 'https:'].includes(url.protocol)) continue
-      if (isExcludedHost(url.hostname)) continue
+      if (!allowPublicListingHosts && isExcludedHost(url.hostname)) continue
       const normalized = url.origin + url.pathname.replace(/\/$/, '')
       if (!seen.has(normalized)) {
         seen.add(normalized)
@@ -209,7 +225,7 @@ type DiscoveryDiagnostic = {
   results: number
 }
 
-async function fetchSearchResults(endpoint: string, engine: 'ddg' | 'bing'): Promise<{ results: Array<{ url: string; title: string }>; diagnostic: DiscoveryDiagnostic }> {
+async function fetchSearchResults(endpoint: string, engine: 'ddg' | 'bing', allowPublicListingHosts = false): Promise<{ results: Array<{ url: string; title: string }>; diagnostic: DiscoveryDiagnostic }> {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 8000)
   try {
@@ -221,7 +237,7 @@ async function fetchSearchResults(endpoint: string, engine: 'ddg' | 'bing'): Pro
       },
     })
     const html = await r.text()
-    const results = r.ok ? extractSearchLinks(html, engine) : []
+    const results = r.ok ? extractSearchLinks(html, engine, allowPublicListingHosts) : []
     const diagnostic: DiscoveryDiagnostic = {
       engine,
       status: r.ok ? 'ok' : 'blocked',
@@ -296,6 +312,41 @@ async function fetchJinaSearch(queryText: string): Promise<{ results: Array<{ ur
   } finally {
     clearTimeout(timeout)
   }
+}
+
+async function discoverPublicListingResults(businessName: string, location: string) {
+  const cleanLocation = location.split(',')[0].trim()
+  const name = businessName.replace(/"/g, '').trim()
+  const queries = [
+    '"' + name + '" "' + cleanLocation + '" (phone OR email OR instagram OR contact)',
+    'site:businesslist.com.ng "' + name + '" "' + cleanLocation + '"',
+    'site:vconnect.com "' + name + '" "' + cleanLocation + '"',
+    'site:connectnigeria.com "' + name + '" "' + cleanLocation + '"',
+    'site:instagram.com "' + name + '" "' + cleanLocation + '"',
+    'site:linkedin.com/company "' + name + '" "' + cleanLocation + '"',
+  ].map(x => x.replace(/\s+/g, ' ').trim())
+
+  const jobs: Array<Promise<{ results: Array<{ url: string; title: string }>; diagnostic: DiscoveryDiagnostic }>> = []
+  for (const queryText of queries) {
+    const query = encodeURIComponent(queryText)
+    jobs.push(fetchSearchResults('https://www.bing.com/search?q=' + query + '&count=10', 'bing', true))
+    jobs.push(fetchSearchResults('https://html.duckduckgo.com/html/?q=' + query, 'ddg', true))
+    jobs.push(fetchJinaSearch(queryText))
+  }
+  const groups = await Promise.all(jobs)
+  const seen = new Set<string>()
+  const merged: Array<{ url: string; title: string }> = []
+  for (const group of groups) {
+    for (const item of group.results) {
+      const key = item.url.toLowerCase()
+      if (seen.has(key)) continue
+      seen.add(key)
+      merged.push(item)
+      if (merged.length >= 36) break
+    }
+    if (merged.length >= 36) break
+  }
+  return { results: merged, diagnostics: groups.map(group => group.diagnostic) }
 }
 
 async function discoverWebResults(businessName: string, location: string) {
@@ -459,21 +510,33 @@ Deno.serve(async (req: Request) => {
     }
 
     const allCandidates = [...unique.values()]
-    const finalCandidates = allCandidates
+    const primaryWebsiteCandidates = allCandidates.filter(candidate => candidate.source_type === 'unknown' && candidate.score >= 70 && candidate.confidence !== 'unverified')
+    const fallbackDiscovery = primaryWebsiteCandidates.length ? { results: [], diagnostics: [] as DiscoveryDiagnostic[] } : await discoverPublicListingResults(businessName, location)
+    if (!primaryWebsiteCandidates.length && fallbackDiscovery.results.length) {
+      const fallbackChecks = await Promise.all(fallbackDiscovery.results.slice(0, 18).map(item => check(item.url, businessName, location, item.title)))
+      for (const candidate of fallbackChecks.filter(Boolean) as Candidate[]) {
+        const key = candidate.domain.toLowerCase()
+        const existing = unique.get(key)
+        if (!existing || candidate.score > existing.score) unique.set(key, candidate)
+      }
+    }
+    const allCandidatesWithFallback = [...unique.values()]
+    const finalCandidates = allCandidatesWithFallback
       .filter(candidate => candidate.source_type === 'unknown' && candidate.score >= 70 && candidate.confidence !== 'unverified')
       .sort((a, b) => b.score - a.score)
       .slice(0, 6)
-    const otherOnlinePresence = allCandidates
+    const otherOnlinePresence = allCandidatesWithFallback
       .filter(candidate => candidate.source_type !== 'unknown')
       .sort((a, b) => b.score - a.score)
       .slice(0, 8)
 
-    const contactSources = [...allCandidates]
+    const contactSources = [...allCandidatesWithFallback]
       .filter(candidate =>
         candidate.contacts.emails.length ||
         candidate.contacts.phones.length ||
         candidate.contacts.instagram.length ||
-        candidate.contacts.social_profiles.length
+        candidate.contacts.social_profiles.length ||
+        candidate.contacts.addresses.length
       )
       .sort((a, b) => {
         const aWeight = a.source_type === 'unknown' ? 20 : 0
@@ -487,6 +550,7 @@ Deno.serve(async (req: Request) => {
       phones: [...new Set(contactSources.flatMap(candidate => candidate.contacts.phones))].slice(0, 8),
       instagram: [...new Set(contactSources.flatMap(candidate => candidate.contacts.instagram))].slice(0, 5),
       social_profiles: [...new Set(contactSources.flatMap(candidate => candidate.contacts.social_profiles))].slice(0, 10),
+      addresses: [...new Set(contactSources.flatMap(candidate => candidate.contacts.addresses))].slice(0, 5),
       sources: contactSources.map(candidate => ({
         url: candidate.url,
         domain: candidate.domain,
@@ -494,6 +558,7 @@ Deno.serve(async (req: Request) => {
         confidence: candidate.confidence,
         score: candidate.score,
         title: candidate.title,
+        label: candidate.source_type === 'social_profile' ? 'Social Profile' : candidate.source_type === 'directory' || candidate.source_type === 'marketplace' ? 'Google Business / Public Listing' : 'Website Domain',
       })),
     }
 
@@ -508,7 +573,9 @@ Deno.serve(async (req: Request) => {
       contact_emails: contactIntel.emails.length,
       contact_phones: contactIntel.phones.length,
       contact_instagram: contactIntel.instagram.length,
-      diagnostics: discovery.diagnostics,
+      contact_addresses: contactIntel.addresses.length,
+      fallback_results: fallbackDiscovery.results.length,
+      diagnostics: [...discovery.diagnostics, ...fallbackDiscovery.diagnostics],
     }))
 
     return response({
@@ -518,13 +585,15 @@ Deno.serve(async (req: Request) => {
       other_online_presence: otherOnlinePresence,
       contact_intelligence: contactIntel,
       searched: domains.size,
-      discovered: discovered.length,
-      discovery: discovery.diagnostics,
+      discovered: discovered.length + fallbackDiscovery.results.length,
+      discovery: [...discovery.diagnostics, ...fallbackDiscovery.diagnostics],
       message: finalCandidates.length
         ? 'Official website candidates found through web discovery. Review the match before saving.'
-        : otherOnlinePresence.length
-          ? 'No official website was verified. Other online presence was found and classified separately.'
-          : 'No live candidate website was found. You can search manually using the business name and location.',
+        : contactIntel.emails.length || contactIntel.phones.length || contactIntel.instagram.length || contactIntel.addresses.length
+          ? 'No official website was verified. Public listing and social contact details were found.'
+          : otherOnlinePresence.length
+            ? 'No official website was verified. Other online presence was found and classified separately.'
+            : 'No public contact channels found across web listings. Add contact details manually.',
     })
   } catch (error) {
     return response({ success: false, error: error instanceof Error ? error.message : String(error) }, 500)

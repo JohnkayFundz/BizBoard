@@ -198,21 +198,19 @@ function outreachTemplate(l,channel,analysisOverride=null){
 
 I came across {companyName} and wanted to reach out. I’m John from King JohnKay Fundz, a web developer based in Lagos.
 
-I noticed an opportunity to strengthen {companyName}'s online presence with a {recommendedService}. {key_findings} This could make it easier for customers to discover the business, understand what it offers and enquire.
+I noticed an opportunity to build a stronger online presence for {companyName} with a {recommendedService}. A clear website could make it easier for potential clients to discover the business, understand its services and make enquiries.
 
-I’d be happy to share the idea and, if useful, a quick example of what I would build. Would you be open to a short conversation?
+I’d be happy to share a quick idea of what I would build for {companyName}. Would you be open to taking a look?
 
 Best,
 John
 King JohnKay Fundz`)
-  if(channel==='Instagram')return personalize(`Hi {contactName} 👋 I came across {companyName} and noticed an opportunity to strengthen its online presence with a {recommendedService}. {key_findings}
+  if(channel==='Instagram')return personalize(`Hi {contactName} 👋 I came across {companyName} and noticed an opportunity to build a stronger online presence with a {recommendedService}.
 
-If you’re interested, I can send you a quick idea for {companyName}. — JohnKay Fundz`)
-  return personalize(`Hi {contactName}, I’m John from King JohnKay Fundz. I came across {companyName} and noticed an opportunity to strengthen its online presence with a {recommendedService}.
+A clear website could make it easier for potential clients to discover the business and make enquiries. If you’re interested, I can send you a quick idea for {companyName}. — JohnKay Fundz`)
+  return personalize(`Hi {contactName}, I’m John from King JohnKay Fundz. I came across {companyName} and noticed an opportunity to build a stronger online presence with a {recommendedService}.
 
-{key_findings}
-
-If useful, I can send you a quick idea for {companyName}.`)
+A clear website could make it easier for potential clients to discover the business and make enquiries. If useful, I can send you a quick idea for {companyName}.`)
 }
 
 async function openOutreach(l){

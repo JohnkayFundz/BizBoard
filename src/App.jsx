@@ -550,7 +550,7 @@ function generateProposal(){buildProposal()}
  if(duplicate){notify(duplicate.reason==='website'?'Duplicate lead: this website is already in your CRM.':'Duplicate lead: this company and contact are already in your CRM.');setSaving(false);return}
  const parsed=leadSchema.safeParse(candidate)
  if(!parsed.success){notify(parsed.error.issues[0]?.message||'Please check the lead details');setSaving(false);return}
- const p={...parsed.data,...calculateLeadScore({...parsed.data,status:parsed.data.status||'New Lead'})};delete p.id;delete p.owner_id;delete p.created_at
+ const scored=calculateLeadScore({...parsed.data,status:parsed.data.status||'New Lead'}); const p={...parsed.data,score:scored.score,score_tier:scored.scoreTier};delete p.id;delete p.owner_id;delete p.created_at
  const r=form.id?await supabase.from('crm_leads').update(p).eq('id',form.id).select().single():await supabase.from('crm_leads').insert(p).select().single()
  if(r.error)notify(r.error.message);else{const scored={...r.data,...calculateLeadScore(r.data)};setLeads(x=>form.id?x.map(a=>a.id===r.data.id?scored:a):[scored,...x]);setModal(false);notify(form.id?'Lead updated':'Lead added')}
  setSaving(false)

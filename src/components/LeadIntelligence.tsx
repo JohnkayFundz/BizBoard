@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Target, Globe2, PlusCircle, Search, ExternalLink } from 'lucide-react'
+import { Target, Globe2, PlusCircle, Search, ExternalLink, Mail, Phone, Instagram, Save } from 'lucide-react'
 import { createClient } from '@supabase/supabase-js'
 import { assessIntelligence, EMPTY_INTELLIGENCE_CHECKS } from '../utils/intelligence'
 import type { IntelligenceChecks } from '../types/crm'
@@ -9,6 +9,7 @@ import { env } from '../lib/env'
 type Lead={id:string|number;company?:string|null;contact_name?:string|null;email?:string|null;website?:string|null;niche?:string|null;location?:string|null;status?:string|null}
 type Analysis={score?:number;recommended_service?:string;estimated_value?:number;response_ms?:number}
 type WebsiteCandidate={url:string;domain:string;status:number|null;title:string;confidence:'verified'|'likely'|'unverified';score:number;reason:string;source_type?:'official_website'|'social_profile'|'directory'|'marketplace'|'portfolio'|'news_media'|'unknown'}
+type ContactIntel={emails:string[];phones:string[];instagram:string[];social_profiles:string[];sources:Array<{url:string;domain:string;source_type:string;confidence:string;score:number;title:string}>}
 const supabase=env?createClient(env.VITE_SUPABASE_URL,env.VITE_SUPABASE_PUBLISHABLE_KEY):null
 
 interface Props{
@@ -17,12 +18,15 @@ interface Props{
  intelChecks:IntelligenceChecks; saveLeadWebsite:()=>void; analyzeWebsite:()=>void; intelAnalyzing:boolean; intelGenerating:boolean; generateIntelligence:()=>void
  intelResult:Analysis|null; intelReport:string; copyIntelligence:()=>void; intelCopied:boolean
  intelligenceHistory:IntelligenceReport[]; applyIntelligenceReport:(report:IntelligenceReport)=>void; onGenerateProposalFromOpportunity:(report:IntelligenceReport)=>void
+ onLeadUpdated:(lead:Lead)=>void
 }
 
 export function LeadIntelligence({leads,intelLead,setIntelLead,intelUrl,setIntelUrl,setIntelReport,setIntelResult,setIntelChecks,intelChecks,saveLeadWebsite,analyzeWebsite,intelAnalyzing,intelGenerating,generateIntelligence,intelResult,intelReport,copyIntelligence,intelCopied,intelligenceHistory,applyIntelligenceReport,onGenerateProposalFromOpportunity}:Props){
  const [websiteCandidates,setWebsiteCandidates]=useState<WebsiteCandidate[]>([])
  const [otherOnlinePresence,setOtherOnlinePresence]=useState<WebsiteCandidate[]>([])
+ const [contactIntel,setContactIntel]=useState<ContactIntel|null>(null)
  const [resolvingWebsite,setResolvingWebsite]=useState(false)
+ const [savingContacts,setSavingContacts]=useState(false)
  const [resolverMessage,setResolverMessage]=useState('')
  const [resolverDiagnostics,setResolverDiagnostics]=useState<{searched:number;discovered:number}|null>(null)
  const hasWebsite=Boolean(intelLead?.website||intelUrl.trim())
@@ -43,25 +47,55 @@ export function LeadIntelligence({leads,intelLead,setIntelLead,intelUrl,setIntel
    const presence=Array.isArray(data?.other_online_presence)?data.other_online_presence as WebsiteCandidate[]:[]
    setWebsiteCandidates(candidates)
    setOtherOnlinePresence(presence)
+   if(data?.contact_intelligence) setContactIntel(data.contact_intelligence as ContactIntel)
    if(typeof data?.searched==='number'&&typeof data?.discovered==='number') setResolverDiagnostics({searched:data.searched,discovered:data.discovered})
    setResolverMessage(data?.message|| (candidates.length?'Official website candidates found. Review the match before saving.':presence.length?'No official website was verified. Other online presence was found and classified separately.':'No live candidate website was found. You can search manually using the business name and location.'))
   }catch(error){
    setResolverMessage(error instanceof Error?error.message:'Unable to find a website right now.')
   }finally{setResolvingWebsite(false)}
  }
+ const saveContactIntel=async()=>{
+  if(!intelLead||!contactIntel||!supabase)return
+  const next={
+   email:intelLead.email||contactIntel.emails[0]||null,
+   phone:intelLead.phone||contactIntel.phones[0]||null,
+   instagram:intelLead.instagram||contactIntel.instagram[0]||null,
+  }
+  if(next.email===intelLead.email&&next.phone===intelLead.phone&&next.instagram===intelLead.instagram){setResolverMessage('No new contact details to save.');return}
+  setSavingContacts(true)
+  try{
+   const {data,error}=await supabase.from('crm_leads').update({...next,updated_at:new Date().toISOString()}).eq('id',intelLead.id).select().single()
+   if(error) throw error
+   onLeadUpdated(data)
+   setResolverMessage('Contact details saved to this lead.')
+  }catch(error){
+   setResolverMessage(error instanceof Error?error.message:'Unable to save contact details.')
+  }finally{setSavingContacts(false)}
+ }
  const selectLead=(value:string)=>{
   const l=leads.find(x=>String(x.id)===value)
-  setIntelLead(l||null);setIntelUrl(l?.website||'');setIntelReport('');setIntelResult(null);setIntelChecks({...EMPTY_INTELLIGENCE_CHECKS});setWebsiteCandidates([]);setOtherOnlinePresence([]);setResolverMessage('');setResolverDiagnostics(null)
+  setIntelLead(l||null);setIntelUrl(l?.website||'');setIntelReport('');setIntelResult(null);setIntelChecks({...EMPTY_INTELLIGENCE_CHECKS});setWebsiteCandidates([]);setOtherOnlinePresence([]);setContactIntel(null);setResolverMessage('');setResolverDiagnostics(null)
  }
  return (<section className="panel intelligencePanel" id="intelligence">
   <div className="panelHead"><div><h2>Lead Intelligence</h2><p>Turn a prospect into a clear sales opportunity before you reach out.</p></div><span>{hasWebsite?'Opportunity scanner':'New website opportunity'}</span></div>
   <div className="intelligenceGrid"><div className="intelForm">
    <label className="field"><span className="fieldLabel">Choose a lead</span><select value={intelLead?.id||''} onChange={e=>selectLead(e.target.value)}><option value="">Select a prospect…</option>{leads.filter(l=>!['Won','Lost'].includes(l.status||'')).map(l=><option key={l.id} value={l.id}>{l.company} · {l.contact_name||'No contact'}</option>)}</select></label>
    <label className="field"><span className="fieldLabel">Website URL</span><input value={intelUrl} onChange={e=>setWebsite(e.target.value)} placeholder="https://example.com" inputMode="url"/>{intelLead&&!intelLead.website&&<small className="intelHint"><Globe2/> No website is saved for this lead. You can search likely business domains below.</small>}</label>
-   {intelLead&&<div className="intelButtons"><button type="button" className="secondary" onClick={findWebsite} disabled={resolvingWebsite}>{resolvingWebsite?'Searching…':<><Search/>Find website</>}</button></div>}
+   {intelLead&&<div className="intelButtons"><button type="button" className="secondary" onClick={findWebsite} disabled={resolvingWebsite}>{resolvingWebsite?'Searching…':<><Search/>Find website & contacts</>}</button></div>}
    {resolverMessage&&<div className="intelHint" style={{marginTop:8}}><Globe2/>{resolverMessage}{resolverDiagnostics&&<small style={{display:'block',marginTop:4}}>Diagnostic: {resolverDiagnostics.discovered} web results discovered · {resolverDiagnostics.searched} direct domains checked.</small>}</div>}
    {websiteCandidates.length>0&&<div className="intelLeadSummary" style={{display:'grid',gap:8,marginTop:10}}><strong>Official website candidates</strong>{websiteCandidates.map(candidate=><div key={candidate.url} style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,flexWrap:'wrap'}}><div style={{minWidth:0}}><span style={{display:'block',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{candidate.domain}</span><small style={{display:'block',marginTop:3}}>{candidate.confidence} · {candidate.reason}</small></div><div style={{display:'flex',gap:6}}><button type="button" className="secondary" onClick={()=>setWebsite(candidate.url)}>Use</button><button type="button" className="secondary" title="Open candidate" onClick={()=>window.open(candidate.url,'_blank','noopener,noreferrer')}><ExternalLink/></button></div></div>)}</div>}
    {otherOnlinePresence.length>0&&<div className="intelLeadSummary" style={{display:'grid',gap:8,marginTop:10}}><strong>Other online presence</strong><small>These results are not treated as the business's official website.</small>{otherOnlinePresence.map(candidate=><div key={candidate.url} style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,flexWrap:'wrap'}}><div style={{minWidth:0}}><span style={{display:'block',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{candidate.domain}</span><small style={{display:'block',marginTop:3}}>{candidate.source_type?.replace('_',' ')} · {candidate.reason}</small></div><button type="button" className="secondary" title="Open result" onClick={()=>window.open(candidate.url,'_blank','noopener,noreferrer')}><ExternalLink/></button></div>)}</div>}
+   {contactIntel&&<div className="intelLeadSummary" style={{display:'grid',gap:10,marginTop:10}}>
+    <div><strong>Contact Intelligence</strong><small style={{display:'block',marginTop:3}}>Public contact channels discovered from business pages and listings. Review before saving.</small></div>
+    <div style={{display:'grid',gap:6}}>
+     {contactIntel.emails.map(email=><div key={email} style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}><Mail/><a href={'mailto:'+email}>{email}</a></div>)}
+     {contactIntel.phones.map(phone=><div key={phone} style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}><Phone/><a href={'tel:'+phone}>{phone}</a></div>)}
+     {contactIntel.instagram.map(url=><div key={url} style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}><Instagram/><a href={url} target="_blank" rel="noreferrer">{url.replace(/^https?:\/\/(?:www\.)?instagram\.com\//i,'@')}</a></div>)}
+     {!contactIntel.emails.length&&!contactIntel.phones.length&&!contactIntel.instagram.length&&<small>No direct email, phone or Instagram contact was found.</small>}
+    </div>
+    {(contactIntel.emails.length||contactIntel.phones.length||contactIntel.instagram.length)&&<div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}><button type="button" className="primary" onClick={saveContactIntel} disabled={savingContacts}><Save/>{savingContacts?'Saving…':'Save contact details'}</button><small>{intelLead.email||intelLead.phone||intelLead.instagram?'Existing lead details will be kept.':'First discovered contact details will be saved.'}</small></div>}
+    {contactIntel.sources.length>0&&<small>Sources checked: {contactIntel.sources.slice(0,4).map((source,index)=><span key={source.url}>{index?' · ':''}<a href={source.url} target="_blank" rel="noreferrer">{source.domain}</a></span>)}</small>}
+   </div>
    {intelLead&&<div className="intelLeadSummary"><strong>{intelLead.company}</strong><span>{intelLead.niche||'Business prospect'}{intelLead.location?' · '+intelLead.location:''}</span></div>}
    <div className="intelScoreCard">{hasWebsite?<><div><small>OPPORTUNITY SCORE</small><strong>{assessment.score}/5</strong></div><div><small>RECOMMENDED SERVICE</small><strong>{assessment.recommendedService}</strong></div></>:<><div><small>OPPORTUNITY AREAS</small><strong>5/5</strong></div><div><small>OPPORTUNITY TYPE</small><strong>New website</strong></div></>}<div><small>ESTIMATED VALUE</small><strong>₦{assessment.estimatedValue.toLocaleString('en-NG')}</strong></div></div>
    {hasWebsite ? <div className="intelChecks"><strong>Website audit checklist</strong>{[['mobile','Mobile-first experience'],['cta','Clear call-to-action'],['contact','Contact / WhatsApp options'],['ecommerce','E-commerce capability'],['seo','Basic SEO setup']].map(([k,label])=><label className="checkRow" key={k}><input type="checkbox" checked={Boolean(intelChecks[k as keyof IntelligenceChecks])} onChange={e=>setIntelChecks(x=>({...x,[k]:e.target.checked}))}/><span>{label}</span></label>)}</div> : <div className="intelChecks"><strong>Potential website capabilities</strong>{['Mobile-first experience','Clear call-to-action','Contact / WhatsApp options','E-commerce capability','Basic SEO setup'].map(label=><div className="checkRow" key={label}><span className="checkMark">✓</span><span>{label}</span></div>)}</div>}

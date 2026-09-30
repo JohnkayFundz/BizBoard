@@ -1,6 +1,7 @@
 import { Search, Filter, ArrowUpDown, ChevronDown, ChevronLeft, ChevronRight, Plus, Users, Trash2, Mail, Phone, Instagram, Globe2, MessageCircle, History, Pencil } from 'lucide-react'
 import { Select } from './Ui'
 import { calculateLeadScore } from '../utils/leadScoring'
+import { getFollowUpSchedule } from '../utils/followUpSequence'
 
 interface Lead {
   id: string | number
@@ -17,6 +18,9 @@ interface Lead {
   website?: string | null
   score?: number | null
   score_tier?: string | null
+  initial_outreach?: { sent_at?: string | null; status?: string | null } | null
+  follow_ups?: Array<{ sequence_number: number; scheduled_for: string | null; sent_at: string | null; status: string; channel: string | null; message_text: string | null }>
+  sequence_status?: string | null
 }
 
 interface Props {
@@ -55,7 +59,7 @@ interface Props {
 
 export function LeadPipeline({ filtered, sorted, paged, safePage, setPage, pageCount, pageSize, query, setQuery, status, setStatus, source, setSource, sources, stages, tone, sortBy, sortKey, move, today, money, contactAction, openActivity, edit, remove, setForm, setModal, empty }: Props) {
   const safeQuery = String(query ?? '')
-  const hasFilters = Boolean(safeQuery.trim() || status !== 'All' || source !== 'All')
+  const hasFilters = Boolean(safeQuery.trim() || status !== 'All' || source !== 'All' || followUpFilter !== 'All')
   return (
     <section className="panel pipelinePanel" id="leads" aria-labelledby="pipeline-heading">
       <div className="panelHead panelHeadStack">
@@ -89,14 +93,15 @@ export function LeadPipeline({ filtered, sorted, paged, safePage, setPage, pageC
               const stage = lead.status || 'New Lead'
               const score=lead.score ?? calculateLeadScore(lead).score
               const tier=lead.score_tier || calculateLeadScore(lead).scoreTier
-              const due = Boolean(lead.next_follow_up && lead.next_follow_up <= today() && !['Won', 'Lost'].includes(stage))
+              const followUp = getFollowUpSchedule(lead)[0]
+              const due = Boolean(followUp && (followUp.status === 'due' || followUp.status === 'overdue'))
               return (
                 <tr key={lead.id}>
                   <td data-label="Lead"><div className="lead"><b className="leadAvatar" aria-hidden="true">{(lead.company || '?')[0].toUpperCase()}</b><span className="leadCopy"><strong title={lead.company || 'Untitled lead'}>{lead.company || 'Untitled lead'}</strong><small title={[String(lead.contact_name ?? '').trim(), String(lead.niche ?? '').trim()].filter(Boolean).join(' · ')}>{[lead.contact_name?.trim(), lead.niche?.trim()].filter(Boolean).join(' · ') || 'No contact name'}</small></span></div></td>
                   <td data-label="Stage"><div className="stageControl"><select className={`stage ${tone[stage] || 'blue'}`} aria-label={`Stage for ${lead.company || 'lead'}`} value={stage} onChange={e => move(lead, e.target.value)}>{stages.map(item => <option key={item}>{item}</option>)}</select><ChevronDown aria-hidden="true" /></div></td>
                   <td data-label="Score"><span className={`scoreBadge score-${tier.toLowerCase()}`} title={`Lead score: ${score}/100`}>{tier==='Hot'?'🔥':tier==='Warm'?'⚡':'❄️'} <b>{score}</b></span></td>
                   <td data-label="Potential"><strong>{money(lead.deal_value)}</strong></td>
-                  <td data-label="Follow-up" className={due ? 'due' : ''}>{lead.next_follow_up || '—'}</td>
+                  <td data-label="Follow-up" className={due ? 'due' : ''}>{followUp?.scheduled_for ? new Date(followUp.scheduled_for).toLocaleDateString('en-NG') : lead.next_follow_up || '—'}</td>
                   <td data-label="Source"><span className="pill">{lead.source || 'Manual'}</span></td>
                   <td data-label="Actions">
                     <div className="actions">
@@ -113,7 +118,7 @@ export function LeadPipeline({ filtered, sorted, paged, safePage, setPage, pageC
                 </tr>
               )
             })}
-            {!filtered.length && <tr><td colSpan={8}><div className="empty">{hasFilters?<><Search/><strong>No matching leads</strong><span>Try a different search term or clear one of the pipeline filters.</span><button className="secondary" onClick={() => { setQuery(''); setStatus('All'); setSource('All') }}>Clear filters</button></>:<><Users/><strong>No leads yet</strong><span>Add your first prospect and start tracking the conversation.</span><button className="primary" onClick={() => { setForm({ ...empty }); setModal(true) }}><Plus />Add first lead</button></>}</div></td></tr>}
+            {!filtered.length && <tr><td colSpan={8}><div className="empty">{hasFilters?<><Search/><strong>No matching leads</strong><span>Try a different search term or clear one of the pipeline filters.</span><button className="secondary" onClick={() => { setQuery(''); setStatus('All'); setSource('All'); setFollowUpFilter('All') }}>Clear filters</button></>:<><Users/><strong>No leads yet</strong><span>Add your first prospect and start tracking the conversation.</span><button className="primary" onClick={() => { setForm({ ...empty }); setModal(true) }}><Plus />Add first lead</button></>}</div></td></tr>}
           </tbody>
         </table>
       </div>

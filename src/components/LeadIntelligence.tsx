@@ -52,10 +52,12 @@ export function LeadIntelligence({leads,intelLead,setIntelLead,intelUrl,setIntel
    setOtherOnlinePresence(presence)
    if(data?.contact_intelligence){
     const rawContactIntel=data.contact_intelligence as ContactIntel
-    setContactIntel({
+    const normalizedContacts={
      ...rawContactIntel,
      addresses:normalizeContactAddresses(rawContactIntel.addresses),
-    })
+    }
+    setContactIntel(normalizedContacts)
+    await autoSaveContactIntel(normalizedContacts,candidates)
    }
    if(typeof data?.searched==='number'&&typeof data?.discovered==='number') setResolverDiagnostics({searched:data.searched,discovered:data.discovered})
    setResolverMessage(data?.message|| (candidates.length?'Official website candidates found. Review the match before saving.':presence.length?'No official website was verified. Other online presence was found and classified separately.':'No live candidate website was found. You can search manually using the business name and location.'))
@@ -63,6 +65,30 @@ export function LeadIntelligence({leads,intelLead,setIntelLead,intelUrl,setIntel
    setResolverMessage(error instanceof Error?error.message:'Unable to find a website right now.')
   }finally{setResolvingWebsite(false)}
  }
+ const autoSaveContactIntel=async(contacts:ContactIntel,candidates:WebsiteCandidate[]=[] )=>{
+  if(!intelLead||!supabase)return
+  const next:{
+   email?:string|null;phone?:string|null;instagram?:string|null;location?:string|null;website?:string|null
+  }={}
+  if(!intelLead.email&&contacts.emails[0]) next.email=contacts.emails[0]
+  if(!intelLead.phone&&contacts.phones[0]) next.phone=contacts.phones[0]
+  if(!intelLead.instagram&&contacts.instagram[0]) next.instagram=contacts.instagram[0]
+  if(!intelLead.location&&contacts.addresses?.[0]) next.location=contacts.addresses[0]
+  const verifiedWebsite=candidates.find(candidate=>candidate.confidence==='verified'&&candidate.source_type==='unknown')?.url
+  if(!intelLead.website&&verifiedWebsite) next.website=verifiedWebsite
+  if(!Object.keys(next).length)return
+  try{
+   const {data,error}=await supabase.from('crm_leads').update({...next,updated_at:new Date().toISOString()}).eq('id',intelLead.id).select().single()
+   if(error)throw error
+   onLeadUpdated(data)
+   if(data.website) setIntelUrl(data.website)
+   setIntelLead(data)
+   setResolverMessage('Contact details automatically updated from verified public sources.')
+  }catch(error){
+   setResolverMessage(error instanceof Error?'Contact discovery succeeded, but automatic lead update failed: '+error.message:'Contact discovery succeeded, but automatic lead update failed.')
+  }
+ }
+
  const saveContactIntel=async()=>{
   if(!intelLead||!contactIntel||!supabase)return
   const next={

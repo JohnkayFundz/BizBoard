@@ -318,8 +318,7 @@ async function launchInstagramOutreach(){
    instagram:lead?.instagram||contacts?.instagram?.[0]||null,
   }
   setLeads(x=>x.map(l=>l.id===lead.id?enriched:l))
-  setIntelLead?.(null)
-  openOutreach(enriched)
+    openOutreach(enriched)
   notify('Discovered contact details loaded into Outreach Engine')
  }
  function notify(x){setToast(x);setTimeout(()=>setToast(''),3000)}

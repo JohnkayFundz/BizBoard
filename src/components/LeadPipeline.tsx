@@ -54,12 +54,12 @@ interface Props {
   selectedIds: Array<string | number>
   setSelectedIds: (ids: Array<string | number>) => void
   onGenerateCampaign: () => void
-  followUpFilter: string
-  setFollowUpFilter: (value: string) => void
+  followUpFilter?: string
+  setFollowUpFilter?: (value: string) => void
   empty: Record<string, unknown>
 }
 
-export function LeadPipeline({ filtered, sorted, paged, safePage, setPage, pageCount, pageSize, query, setQuery, status, setStatus, source, setSource, sources, stages, tone, sortBy, sortKey, move, today, money, contactAction, openActivity, edit, remove, setForm, setModal, empty, followUpFilter, setFollowUpFilter }: Props) {
+export function LeadPipeline({ filtered, sorted, paged, safePage, setPage, pageCount, pageSize, query, setQuery, status, setStatus, source, setSource, sources, stages, tone, sortBy, sortKey, move, today, money, contactAction, openActivity, edit, remove, setForm, setModal, empty, followUpFilter = 'All', setFollowUpFilter = () => {} }: Props) {
   const safeQuery = String(query ?? '')
   const hasFilters = Boolean(safeQuery.trim() || status !== 'All' || source !== 'All' || followUpFilter !== 'All')
   return (

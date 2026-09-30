@@ -102,7 +102,7 @@ export function LeadIntelligence({leads,intelLead,setIntelLead,intelUrl,setIntel
      </div>
      {(contactIntel.emails.length||contactIntel.phones.length||contactIntel.instagram.length) && (
       <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
-       <button type="button" className="primary" onClick={()=>onUseContactIntel(intelLead,contactIntel)}><Send/>Use for Outreach</button>
+       <button type="button" className="primary" onClick={()=>intelLead&&onUseContactIntel(intelLead,contactIntel)}><Send/>Use for Outreach</button>
        <button type="button" className="secondary" onClick={saveContactIntel} disabled={savingContacts}><Save/>{savingContacts?'Saving…':'Save contact details'}</button>
        <small>{intelLead?.email||intelLead?.phone||intelLead?.instagram?'Existing lead details will be kept.':'Use for Outreach can pass the discovered contact directly into the outreach composer.'}</small>
       </div>

@@ -19,10 +19,11 @@ interface Props {
   metrics: Metrics
   followUps: FollowUps
   openActivity: (lead: LeadSummary) => void
+  onReviewFollowUp?: (lead: LeadSummary) => void
   money: (value: number) => string
 }
 
-export function DashboardSummary({ metrics, followUps, openActivity, money }: Props) {
+export function DashboardSummary({ metrics, followUps, openActivity, onReviewFollowUp, money }: Props) {
   return (
     <>
       <section className="metrics" aria-label="Pipeline summary">
@@ -39,9 +40,9 @@ export function DashboardSummary({ metrics, followUps, openActivity, money }: Pr
           <span className="panelBadge"><ArrowUpRight aria-hidden="true" />{followUps.overdue.length + followUps.today.length} need attention</span>
         </div>
         <div className="followupGrid">
-          <FollowupCard title="Overdue" items={followUps.overdue} empty="Nothing overdue" tone="overdue" onActivity={openActivity} />
-          <FollowupCard title="Due today" items={followUps.today} empty="Nothing due today" tone="today" onActivity={openActivity} />
-          <FollowupCard title="Upcoming" items={followUps.upcoming} empty="No upcoming follow-ups" tone="upcoming" onActivity={openActivity} />
+          <FollowupCard title="Overdue" items={followUps.overdue} empty="Nothing overdue" tone="overdue" onActivity={openActivity} onReviewFollowUp={onReviewFollowUp} />
+          <FollowupCard title="Due today" items={followUps.today} empty="Nothing due today" tone="today" onActivity={openActivity} onReviewFollowUp={onReviewFollowUp} />
+          <FollowupCard title="Upcoming" items={followUps.upcoming} empty="No upcoming follow-ups" tone="upcoming" onActivity={openActivity} onReviewFollowUp={onReviewFollowUp} />
         </div>
       </section>
     </>

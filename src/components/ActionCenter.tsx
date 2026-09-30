@@ -1,5 +1,6 @@
 import { Bell, CalendarClock, CheckCircle2, MessageSquare, Target, TrendingUp } from 'lucide-react'
 import { calculateLeadScore } from '../utils/leadScoring'
+import { getFollowUpSchedule } from '../utils/followUpSequence'
 
 type Lead = {
   id: string | number
@@ -14,6 +15,9 @@ type Lead = {
   deal_value?: number | string | null
   score?: number | null
   score_tier?: string | null
+  initial_outreach?: { sent_at?: string | null; status?: string | null } | null
+  follow_ups?: Array<{ sequence_number: number; scheduled_for: string | null; sent_at: string | null; status: string; channel: string | null; message_text: string | null }>
+  sequence_status?: string | null
 }
 
 type Metrics = {
@@ -55,7 +59,7 @@ export function ActionCenter({ leads, metrics, followUps, openActivity, openOutr
     lead,
     score,
     tier,
-    label: lead.next_follow_up ? (lead.next_follow_up <= new Date().toISOString().slice(0, 10) ? 'Follow-up due' : 'Follow-up scheduled') : lead.status === 'Proposal Sent' ? 'Proposal follow-up' : lead.status === 'Interested' ? 'Interested lead' : 'Outreach needed',
+    label: (()=>{const schedule=getFollowUpSchedule(lead);const next=schedule[0];return next ? (next.status==='overdue'?'Follow-up overdue':next.status==='due'?'Follow-up due':'Follow-up scheduled') : lead.status === 'Proposal Sent' ? 'Proposal follow-up' : lead.status === 'Interested' ? 'Interested lead' : 'Outreach needed'})(),
     tone: tier === 'Hot' ? 'danger' : tier === 'Warm' ? 'warning' : 'neutral'
   }))
 
@@ -86,7 +90,7 @@ export function ActionCenter({ leads, metrics, followUps, openActivity, openOutr
               <div className="actionScore"><span className={`scoreBadge score-${tier.toLowerCase()}`}>{tier==='Hot'?'🔥':tier==='Warm'?'⚡':'❄️'} <b>{score}</b></span></div><div className="actionIcon">{label.includes('follow-up') || label.includes('Due') ? <CalendarClock /> : <MessageSquare />}</div>
               <div className="actionMain">
                 <strong>{(lead.company || 'Unnamed lead').replace(/\\s*[—-]\\s*Website\\s*$/i, '')}</strong>
-                <small>{label}{lead.next_follow_up ? ` · ${lead.next_follow_up}` : ''} · Score {score}</small>
+                <small>{label}{getFollowUpSchedule(lead)[0]?.scheduled_for ? ` · ${new Date(getFollowUpSchedule(lead)[0].scheduled_for).toLocaleDateString('en-NG')}` : ''} · Score {score}</small>
               </div>
               <div className="actionButtons">
                 <button className="secondary" onClick={() => openActivity(lead)}>Activity</button>

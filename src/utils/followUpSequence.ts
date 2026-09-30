@@ -66,7 +66,7 @@ export function getFollowUpSchedule(lead: {
 
   for (const sequenceNumber of [1, 2] as const) {
     const record = existing.find(item => Number(item.sequence_number) === sequenceNumber) || null
-    if (record?.sent_at || ['sent', 'completed', 'skipped', 'cancelled'].includes(String(record.status).toLowerCase())) continue
+    if (record?.sent_at || ['sent', 'completed', 'skipped', 'cancelled'].includes(String(record?.status).toLowerCase())) continue
 
     const firstScheduledFor = addDays(sentAt.toISOString(), FOLLOW_UP_SCHEDULE_DAYS[0])
     const secondBaseline = addDays(sentAt.toISOString(), FOLLOW_UP_SCHEDULE_DAYS[1])

@@ -8,7 +8,6 @@ import { calculatePipelineMetrics, findPotentialDuplicateLeads, findLeadDuplicat
 import { calculateLeadScore } from './utils/leadScoring'
 import { buildMailtoUrl, buildWhatsAppUrl, buildInstagramInboxUrl, normalizeWhatsAppPhone } from './utils/outreach'
 import { getFollowUpQueueSummary, getFollowUpSchedule } from './utils/followUpSequence'
-import { generateFollowUpMessage, getFollowUpChannel } from './utils/followUpMessages'
 import { downloadProposalPdf } from './utils/pdfGenerator'
 import { Metric, Select, FollowupCard } from './components/Ui'
 import { LeadIntelligence } from './components/LeadIntelligence'

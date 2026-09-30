@@ -503,9 +503,9 @@ function generateProposal(){buildProposal()}
  function sortBy(key){setPage(1);if(key==='score'){setSortKey('score');setSortDir('desc');return}if(sortKey===key)setSortDir(x=>x==='asc'?'desc':'asc');else{setSortKey(key);setSortDir('asc')}}
  useEffect(()=>{setPage(1)},[query,status,source,followUpFilter])
  const pipelineMetrics=useMemo(()=>calculatePipelineMetrics(leads,today()),[leads])
+ const followUpSummary=useMemo(()=>getFollowUpQueueSummary(leads,new Date()),[leads])
  const metrics={...pipelineMetrics,due:followUpSummary.due.length}
  const sources=[...new Set(leads.map(l=>l.source).filter(Boolean))]
- const followUpSummary=useMemo(()=>getFollowUpQueueSummary(leads,new Date()),[leads])
  const followUps=useMemo(()=>{
    const build=(status)=>leads.flatMap(lead=>{
      const item=getFollowUpSchedule(lead).find(schedule=>schedule.status===status)

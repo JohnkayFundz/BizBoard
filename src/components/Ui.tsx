@@ -55,14 +55,15 @@ interface FollowupCardProps {
   empty: string
   tone: 'overdue' | 'today' | 'upcoming'
   onActivity: (lead: LeadSummary) => void
+  onReviewFollowUp?: (lead: LeadSummary) => void
 }
 
-export function FollowupCard({ title, items, empty, tone, onActivity }: FollowupCardProps) {
+export function FollowupCard({ title, items, empty, tone, onActivity, onReviewFollowUp }: FollowupCardProps) {
   return (
     <article className={`followupCard ${tone}`}>
       <div className="followupTitle"><strong>{title}</strong><span>{items.length}</span></div>
       {items.length ? items.map(lead => (
-        <button className="followupItem" key={lead.id} onClick={() => onActivity(lead)}>
+        <button className="followupItem" key={lead.id} onClick={() => onReviewFollowUp ? onReviewFollowUp(lead) : onActivity(lead)}>
           <span><b>{lead.company || 'Untitled lead'}</b><small>{lead.contact_name || 'No contact name'} · {lead.status || 'New Lead'}</small></span>
           <time>{lead.next_follow_up || '—'}</time>
         </button>

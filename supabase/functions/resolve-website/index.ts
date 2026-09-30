@@ -1,5 +1,12 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2.112.3/cors'
 
+type ContactInfo = {
+  emails: string[]
+  phones: string[]
+  instagram: string[]
+  social_profiles: string[]
+}
+
 type Candidate = {
   url: string
   domain: string
@@ -9,6 +16,7 @@ type Candidate = {
   score: number
   reason: string
   source_type: 'official_website' | 'social_profile' | 'directory' | 'marketplace' | 'portfolio' | 'news_media' | 'unknown'
+  contacts: ContactInfo
 }
 
 function classifyHost(hostname: string, title = ''): Candidate['source_type'] {
@@ -60,6 +68,56 @@ function decodeHtml(value: string) {
     .replace(/&#39;/g, "'")
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
+}
+
+function extractContactInfo(html: string, baseUrl: string): ContactInfo {
+  const text = decodeHtml(html.replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' '))
+  const emails = new Set<string>()
+  const phones = new Set<string>()
+  const instagram = new Set<string>()
+  const social = new Set<string>()
+
+  for (const match of html.matchAll(/(?:mailto:)?([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})/gi)) {
+    const value = String(match[1] || '').toLowerCase().replace(/[),.;:]+$/, '')
+    if (!value || /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(value)) continue
+    emails.add(value)
+  }
+
+  for (const match of text.matchAll(/(?:\+234|0)(?:[\s().-]*\d){10}/g)) {
+    const value = String(match[0]).replace(/[^\d+]/g, '')
+    const digits = value.replace(/^\+/, '')
+    if (digits.startsWith('234') && digits.length === 13) phones.add('+' + digits)
+    else if (digits.startsWith('0') && digits.length === 11) phones.add('+234' + digits.slice(1))
+  }
+
+  for (const match of html.matchAll(/https?:\/\/(?:www\.)?(?:instagram\.com|facebook\.com|linkedin\.com|tiktok\.com)\/[A-Za-z0-9._%/?=&-]+/gi)) {
+    try {
+      const url = new URL(match[0])
+      const normalized = url.origin + url.pathname.replace(/\/$/, '')
+      social.add(normalized)
+      if (url.hostname.toLowerCase().replace(/^www\./, '') === 'instagram.com') instagram.add(normalized)
+    } catch {}
+  }
+
+  for (const match of html.matchAll(/(?:href|src)=["']([^"']+)["']/gi)) {
+    const raw = decodeHtml(match[1] || '')
+    try {
+      const url = new URL(raw, baseUrl)
+      const host = url.hostname.toLowerCase().replace(/^www\./, '')
+      if (['instagram.com','facebook.com','linkedin.com','tiktok.com'].some(d => host === d || host.endsWith('.' + d))) {
+        const normalized = url.origin + url.pathname.replace(/\/$/, '')
+        social.add(normalized)
+        if (host === 'instagram.com') instagram.add(normalized)
+      }
+    } catch {}
+  }
+
+  return {
+    emails: [...emails].slice(0, 5),
+    phones: [...phones].slice(0, 5),
+    instagram: [...instagram].slice(0, 3),
+    social_profiles: [...social].slice(0, 8),
+  }
 }
 
 function searchQueries(businessName: string, location: string) {
@@ -299,6 +357,7 @@ async function check(url: string, businessName: string, location: string, discov
     score = Math.min(100, score)
 
     const sourceType = classifyHost(new URL(r.url).hostname, title)
+    const contacts = extractContactInfo(text, r.url)
     const confidence: Candidate['confidence'] =
       r.ok && sourceType === 'unknown' && (matches >= Math.min(2, tokens.length) || domainMatch) && score >= 75
         ? 'verified'
@@ -314,6 +373,7 @@ async function check(url: string, businessName: string, location: string, discov
       confidence,
       score,
       source_type: sourceType,
+      contacts,
       reason: confidence === 'verified'
         ? discoveryTitle
           ? 'Found through web discovery and verified as a strong business-name match.'
@@ -408,6 +468,35 @@ Deno.serve(async (req: Request) => {
       .sort((a, b) => b.score - a.score)
       .slice(0, 8)
 
+    const contactSources = [...allCandidates]
+      .filter(candidate =>
+        candidate.contacts.emails.length ||
+        candidate.contacts.phones.length ||
+        candidate.contacts.instagram.length ||
+        candidate.contacts.social_profiles.length
+      )
+      .sort((a, b) => {
+        const aWeight = a.source_type === 'unknown' ? 20 : 0
+        const bWeight = b.source_type === 'unknown' ? 20 : 0
+        return (b.score + bWeight) - (a.score + aWeight)
+      })
+      .slice(0, 8)
+
+    const contactIntel = {
+      emails: [...new Set(contactSources.flatMap(candidate => candidate.contacts.emails))].slice(0, 8),
+      phones: [...new Set(contactSources.flatMap(candidate => candidate.contacts.phones))].slice(0, 8),
+      instagram: [...new Set(contactSources.flatMap(candidate => candidate.contacts.instagram))].slice(0, 5),
+      social_profiles: [...new Set(contactSources.flatMap(candidate => candidate.contacts.social_profiles))].slice(0, 10),
+      sources: contactSources.map(candidate => ({
+        url: candidate.url,
+        domain: candidate.domain,
+        source_type: candidate.source_type,
+        confidence: candidate.confidence,
+        score: candidate.score,
+        title: candidate.title,
+      })),
+    }
+
     console.log(JSON.stringify({
       event: 'discovery_summary',
       discovered: discovered.length,
@@ -415,6 +504,10 @@ Deno.serve(async (req: Request) => {
       checked: candidates.length,
       final_candidates: finalCandidates.length,
       other_online_presence: otherOnlinePresence.length,
+      contact_sources: contactSources.length,
+      contact_emails: contactIntel.emails.length,
+      contact_phones: contactIntel.phones.length,
+      contact_instagram: contactIntel.instagram.length,
       diagnostics: discovery.diagnostics,
     }))
 
@@ -423,6 +516,7 @@ Deno.serve(async (req: Request) => {
       business_name: businessName,
       candidates: finalCandidates,
       other_online_presence: otherOnlinePresence,
+      contact_intelligence: contactIntel,
       searched: domains.size,
       discovered: discovered.length,
       discovery: discovery.diagnostics,

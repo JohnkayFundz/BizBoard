@@ -506,7 +506,13 @@ function generateProposal(){buildProposal()}
  const metrics={...pipelineMetrics,due:followUpSummary.due.length}
  const sources=[...new Set(leads.map(l=>l.source).filter(Boolean))]
  const followUpSummary=useMemo(()=>getFollowUpQueueSummary(leads,new Date()),[leads])
- const followUps=useMemo(()=>({overdue:followUpSummary.overdue.map(item=>leads.find(lead=>getFollowUpSchedule(lead).some(s=>s.sequence_number===item.sequence_number&&s.scheduled_for===item.scheduled_for))).filter(Boolean).sort((a,b)=>String(a.id).localeCompare(String(b.id))),today:followUpSummary.today.map(item=>leads.find(lead=>getFollowUpSchedule(lead).some(s=>s.sequence_number===item.sequence_number&&s.scheduled_for===item.scheduled_for))).filter(Boolean),upcoming:followUpSummary.upcoming.map(item=>leads.find(lead=>getFollowUpSchedule(lead).some(s=>s.sequence_number===item.sequence_number&&s.scheduled_for===item.scheduled_for))).filter(Boolean).slice(0,5)}),[followUpSummary,leads])
+ const followUps=useMemo(()=>{
+   const build=(status)=>leads.flatMap(lead=>{
+     const item=getFollowUpSchedule(lead).find(schedule=>schedule.status===status)
+     return item?[{...lead,next_follow_up:item.scheduled_for}]:[]
+   }).sort((a,b)=>String(a.next_follow_up||'').localeCompare(String(b.next_follow_up||'')))
+   return {overdue:build('overdue'),today:build('due'),upcoming:build('upcoming').slice(0,5)}
+ },[leads,followUpSummary])
  function edit(l){setForm({...l,deal_value:l.deal_value||''});setModal(true)}
  async function save(e){
  e.preventDefault();setSaving(true)

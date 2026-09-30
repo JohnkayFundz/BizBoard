@@ -34,6 +34,7 @@ type FollowUps = {
 }
 
 type ActionCenterProps = {
+  onReviewFollowUp: (lead: Lead) => void
   leads: Lead[]
   metrics?: Metrics
   followUps?: FollowUps
@@ -93,7 +94,7 @@ export function ActionCenter({ leads, metrics, followUps, openActivity, openOutr
                 <small>{label}{getFollowUpSchedule(lead)[0]?.scheduled_for ? ` · ${new Date(getFollowUpSchedule(lead)[0].scheduled_for).toLocaleDateString('en-NG')}` : ''} · Score {score}</small>
               </div>
               <div className="actionButtons">
-                <button className="secondary" onClick={() => openActivity(lead)}>Activity</button>
+                <button className="secondary" onClick={() => openActivity(lead)}>Activity</button>{getFollowUpSchedule(lead).length ? <button className="primary" onClick={() => onReviewFollowUp(lead)}>Review follow-up</button> : null}
                 {lead.email || lead.instagram || lead.phone ? <button className="primary" onClick={() => openOutreach(lead)}>Outreach</button> : null}
               </div>
             </div>

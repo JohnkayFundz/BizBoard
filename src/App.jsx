@@ -31,7 +31,7 @@ const titleCaseName=value=>{const raw=String(value||'').trim().replace(/[_-]+/g,
 const dateAfterDays=days=>{const d=new Date();d.setDate(d.getDate()+days);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
 
 export default function App(){
- const [session,setSession]=useState(null),[loading,setLoading]=useState(true),[mode,setMode]=useState('login')
+ const [session,setSession]=useState(null),[loading,setLoading]=useState(true),[mode,setMode]=useState('login'),[now,setNow]=useState(()=>new Date())
  const [email,setEmail]=useState(''),[password,setPassword]=useState(''),[authMsg,setAuthMsg]=useState('')
  const [leads,setLeads]=useState([]),[query,setQuery]=useState(''),[status,setStatus]=useState('All'),[source,setSource]=useState('All'),[followUpFilter,setFollowUpFilter]=useState('All'),[sortKey,setSortKey]=useState('updated_at'),[sortDir,setSortDir]=useState('desc'),[page,setPage]=useState(1),[pageSize]=useState(10)
  const [modal,setModal]=useState(false),[form,setForm]=useState(empty),[saving,setSaving]=useState(false),[syncing,setSyncing]=useState(false),[toast,setToast]=useState('')
@@ -41,6 +41,7 @@ export default function App(){
  const [proposalLead,setProposalLead]=useState(null),[proposalService,setProposalService]=useState('Business Website'),[proposalPrice,setProposalPrice]=useState('150000'),[proposalTimeline,setProposalTimeline]=useState('7–10 business days'),[proposalTaxRate,setProposalTaxRate]=useState('0'),[proposalText,setProposalText]=useState(''),[proposalCopied,setProposalCopied]=useState(false),[proposalAnalyses,setProposalAnalyses]=useState({}),[proposalTracking,setProposalTracking]=useState(false),[proposalGenerating,setProposalGenerating]=useState(false),[proposalPdfBusy,setProposalPdfBusy]=useState(false),[intelligenceHistory,setIntelligenceHistory]=useState([]),[proposalOpportunity,setProposalOpportunity]=useState(null)
 
  useEffect(()=>{if(!supabase){setLoading(false);return} supabase.auth.getSession().then(({data})=>{setSession(data.session);setLoading(false)});const {data:{subscription}}=supabase.auth.onAuthStateChange((_e,s)=>setSession(s));return()=>subscription.unsubscribe()},[])
+ useEffect(()=>{const timer=window.setInterval(()=>setNow(new Date()),60000);return()=>window.clearInterval(timer)},[])
  useEffect(()=>{if(!session)return;load();const channel=supabase.channel('crm-live').on('postgres_changes',{event:'*',schema:'public',table:'crm_leads'},()=>load()).subscribe();return()=>{supabase.removeChannel(channel)}},[session])
  useEffect(()=>{if(!session||!intelLead?.id)return;loadIntelligenceHistory(intelLead.id)},[session,intelLead?.id])
  async function load(){const {data,error}=await supabase.from('crm_leads').select('*').order('updated_at',{ascending:false});if(error){notify(error.message);return []}const hydrated=(data||[]).map(l=>({...l,...calculateLeadScore(l)}));setLeads(hydrated);return hydrated}
@@ -496,23 +497,23 @@ function generateProposal(){buildProposal()}
   }catch(error){notify(error instanceof Error?error.message:'Proposal tracking failed')}
   finally{setProposalTracking(false)}
  }
- const followUpStatusForLead=(lead)=>getFollowUpSchedule(lead).map(item=>item.status)
+ const followUpStatusForLead=(lead)=>getFollowUpSchedule(lead,now).map(item=>item.status)
  const filtered=useMemo(()=>{const q=query.toLowerCase().trim();return leads.filter(l=>{const matchesSearch=!q||[l.company,l.contact_name,l.email,l.niche,l.location,l.source].some(v=>String(v||'').toLowerCase().includes(q));const matchesStage=status==='All'||l.status===status;const matchesSource=source==='All'||l.source===source;const statuses=followUpStatusForLead(l);const matchesFollowUp=followUpFilter==='All'||(followUpFilter==='Due'&&statuses.some(s=>s==='due'||s==='overdue'))||(followUpFilter==='Overdue'&&statuses.includes('overdue'))||(followUpFilter==='Due Today'&&statuses.includes('due'))||(followUpFilter==='Upcoming'&&statuses.includes('upcoming'))||(followUpFilter==='No Follow-up'&&!statuses.length);return matchesSearch&&matchesStage&&matchesSource&&matchesFollowUp})},[leads,query,status,source,followUpFilter])
  const sorted=useMemo(()=>[...filtered].sort((a,b)=>{const an=Number(a?.score??0),bn=Number(b?.score??0);const av=String(a?.[sortKey]??'').toLowerCase(),bv=String(b?.[sortKey]??'').toLowerCase();const cmp=sortKey==='score'||sortKey==='deal_value'?an-bn:av.localeCompare(bv);return sortDir==='asc'?cmp:-cmp}),[filtered,sortKey,sortDir])
  const pageCount=Math.max(1,Math.ceil(sorted.length/pageSize));const safePage=Math.min(page,pageCount);const paged=sorted.slice((safePage-1)*pageSize,safePage*pageSize)
  function sortBy(key){setPage(1);if(key==='score'){setSortKey('score');setSortDir('desc');return}if(sortKey===key)setSortDir(x=>x==='asc'?'desc':'asc');else{setSortKey(key);setSortDir('asc')}}
  useEffect(()=>{setPage(1)},[query,status,source,followUpFilter])
  const pipelineMetrics=useMemo(()=>calculatePipelineMetrics(leads,today()),[leads])
- const followUpSummary=useMemo(()=>getFollowUpQueueSummary(leads,new Date()),[leads])
+ const followUpSummary=useMemo(()=>getFollowUpQueueSummary(leads,now),[leads,now])
  const metrics={...pipelineMetrics,due:followUpSummary.due.length}
  const sources=[...new Set(leads.map(l=>l.source).filter(Boolean))]
  const followUps=useMemo(()=>{
    const build=(status)=>leads.flatMap(lead=>{
-     const item=getFollowUpSchedule(lead).find(schedule=>schedule.status===status)
+     const item=getFollowUpSchedule(lead,now).find(schedule=>schedule.status===status)
      return item?[{...lead,next_follow_up:item.scheduled_for}]:[]
    }).sort((a,b)=>String(a.next_follow_up||'').localeCompare(String(b.next_follow_up||'')))
    return {overdue:build('overdue'),today:build('due'),upcoming:build('upcoming').slice(0,5)}
- },[leads,followUpSummary])
+ },[leads,followUpSummary,now])
  function edit(l){setForm({...l,deal_value:l.deal_value||''});setModal(true)}
  async function save(e){
  e.preventDefault();setSaving(true)

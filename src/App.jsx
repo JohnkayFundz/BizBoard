@@ -23,7 +23,7 @@ const supabase = env ? createClient(env.VITE_SUPABASE_URL, env.VITE_SUPABASE_PUB
 
 const stages=['New Lead','Contacted','Replied','Interested','Proposal Sent','Won','Lost']
 const tone={ 'New Lead':'blue',Contacted:'indigo',Replied:'violet',Interested:'amber','Proposal Sent':'orange',Won:'green',Lost:'red' }
-const empty={company:'',contact_name:'',role:'',email:'',phone:'',website:'',instagram:'',niche:'',location:'',source:'Manual',status:'New Lead',deal_value:'',next_follow_up:'',notes:''}
+const empty={company:'',contact_name:'',role:'',email:'',phone:'',website:'',instagram:'',niche:'',location:'',source:'Manual',status:'New Lead',deal_value:'',opportunity_type:'',next_follow_up:'',notes:''}
 const money=v=>new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:0}).format(Number(v||0))
 const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
 const titleCaseName=value=>{const raw=String(value||'').trim().replace(/[_-]+/g,' ').replace(/\s+/g,' ');if(!raw)return '';return raw.split(' ').map(token=>{if(token.length<=4&&token===token.toUpperCase()&&/[A-Z]/.test(token))return token;return token.toLowerCase().replace(/(^|[’'])([a-z])/g,(_,p,l)=>p+l.toUpperCase()).replace(/^[a-z]/,l=>l.toUpperCase())}).join(' ')}
@@ -412,7 +412,7 @@ function generateProposal(){buildProposal()}
  e.preventDefault();setSaving(true)
  let normalizedWebsite=''
  try{normalizedWebsite=normalizeWebsiteUrl(cleanText(form.website,500))}catch(error){notify(error instanceof Error?error.message:'Invalid website URL');setSaving(false);return}
- const candidate={...form,company:titleCaseName(cleanText(form.company,120)),contact_name:titleCaseName(cleanText(form.contact_name,100)),role:titleCaseName(cleanText(form.role,100)),email:cleanText(form.email,160).toLowerCase(),phone:cleanText(form.phone,30),website:normalizedWebsite,instagram:cleanText(form.instagram,120),niche:titleCaseName(cleanText(form.niche,100)),location:titleCaseName(cleanText(form.location,100)),source:cleanText(form.source,60),notes:cleanText(form.notes,2000),deal_value:form.deal_value?Number(form.deal_value):0,updated_at:new Date().toISOString()}
+ const candidate={...form,company:titleCaseName(cleanText(form.company,120)),contact_name:titleCaseName(cleanText(form.contact_name,100)),role:titleCaseName(cleanText(form.role,100)),email:cleanText(form.email,160).toLowerCase(),phone:cleanText(form.phone,30),website:normalizedWebsite,instagram:cleanText(form.instagram,120),niche:titleCaseName(cleanText(form.niche,100)),location:titleCaseName(cleanText(form.location,100)),source:cleanText(form.source,60),notes:cleanText(form.notes,2000),deal_value:form.deal_value?Number(form.deal_value):0,opportunity_type:cleanText(form.opportunity_type,120),updated_at:new Date().toISOString()}
  const duplicate=findLeadDuplicate(leads,candidate,form.id)
  if(duplicate){notify(duplicate.reason==='website'?'Duplicate lead: this website is already in your CRM.':'Duplicate lead: this company and contact are already in your CRM.');setSaving(false);return}
  const parsed=leadSchema.safeParse(candidate)

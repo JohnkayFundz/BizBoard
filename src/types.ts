@@ -6,7 +6,7 @@ export const FOLLOW_UP_METHODS = ['Call','Email','Instagram','WhatsApp','Meeting
 export type FollowUpMethod = typeof FOLLOW_UP_METHODS[number]
 export const FOLLOW_UP_OUTCOMES = ['Interested','Needs follow-up','No response','Not interested'] as const
 export type FollowUpOutcome = typeof FOLLOW_UP_OUTCOMES[number]
-export interface Lead { id:string; user_id?:string; company:string; contact_name:string|null; role:string|null; email:string|null; phone:string|null; website:string|null; instagram:string|null; niche:string|null; location:string|null; source:string|null; status:LeadStage; deal_value:number|string|null; next_follow_up:string|null; notes:string|null; created_at?:string; updated_at?:string }
+export interface Lead { id:string; user_id?:string; company:string; contact_name:string|null; role:string|null; email:string|null; phone:string|null; website:string|null; instagram:string|null; niche:string|null; location:string|null; source:string|null; status:LeadStage; deal_value:number|string|null; opportunity_type:string|null; outreach_status:'Not Contacted'|'Sent'|'Bounced'|'Replied'; last_contacted_at:string|null; next_follow_up:string|null; notes:string|null; created_at?:string; updated_at?:string }
 export interface LeadActivity { id:number|string; lead_id:string; activity_type:string; note:string; created_at:string }
 export interface IntelligenceChecks { mobile:boolean; cta:boolean; contact:boolean; ecommerce:boolean; seo:boolean }
 export interface IntelligenceResult { success:boolean; url:string; response_ms?:number; status?:number; title?:string; description?:string; checks:IntelligenceChecks; score:number; findings:string[]; opportunities:string[]; recommended_service:string; estimated_value:number }

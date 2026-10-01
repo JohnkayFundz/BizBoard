@@ -1,4 +1,4 @@
-export const LEAD_STAGES = ['New Lead','Contacted','Replied','Interested','Proposal Sent','Bounced / Correction Required','Won','Lost'] as const
+export const LEAD_STAGES = ['New Lead','Contacted','Replied','Interested','Proposal Sent','Won','Lost'] as const
 export type LeadStage = typeof LEAD_STAGES[number]
 export const OUTREACH_CHANNELS = ['Email','Instagram','WhatsApp'] as const
 export type OutreachChannel = typeof OUTREACH_CHANNELS[number]

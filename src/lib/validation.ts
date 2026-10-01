@@ -15,8 +15,9 @@ export const leadSchema=z.object({
  niche:optionalText(100),
  location:optionalText(100),
  source:z.string().trim().max(60).default('Manual'),
- status:z.enum(['New Lead','Contacted','Replied','Interested','Proposal Sent','Won','Lost']),
+ status:z.enum(['New Lead','Contacted','Replied','Interested','Proposal Sent','Bounced / Correction Required','Won','Lost']),
  deal_value:z.coerce.number().nonnegative().max(1000000000).optional(),
+ opportunity_type:optionalText(120),
  next_follow_up:z.string().regex(/^\d{4}-\d{2}-\d{2}$/,'Use a valid follow-up date').optional().or(z.literal('')),
  notes:optionalText(2000)
 })

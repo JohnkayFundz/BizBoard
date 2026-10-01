@@ -7,7 +7,7 @@ import type { IntelligenceReport } from '../types/intelligence'
 import { env } from '../lib/env'
 import { normalizeContactAddresses } from '../utils/contactIntel'
 
-type Lead={id:string|number;company?:string|null;contact_name?:string|null;email?:string|null;phone?:string|null;instagram?:string|null;website?:string|null;niche?:string|null;location?:string|null;status?:string|null}
+type Lead={id:string|number;company?:string|null;contact_name?:string|null;email?:string|null;phone?:string|null;instagram?:string|null;website?:string|null;niche?:string|null;location?:string|null;status?:string|null;deal_value?:number|string|null;opportunity_type?:string|null;outreach_status?:string|null;last_contacted_at?:string|null}
 type Analysis={score?:number;recommended_service?:string;estimated_value?:number;response_ms?:number}
 type WebsiteCandidate={url:string;domain:string;status:number|null;title:string;confidence:'verified'|'likely'|'unverified';score:number;reason:string;source_type?:'official_website'|'social_profile'|'directory'|'marketplace'|'portfolio'|'news_media'|'unknown'}
 type ContactIntel={emails:string[];phones:string[];instagram:string[];social_profiles:string[];addresses?:string[];sources:Array<{url:string;domain:string;source_type:string;label?:string;confidence:string;score:number;title:string}>}
@@ -114,7 +114,7 @@ export function LeadIntelligence({leads,intelLead,setIntelLead,intelUrl,setIntel
  return (<section className="panel intelligencePanel" id="intelligence">
   <div className="panelHead"><div><h2>Lead Intelligence</h2><p>Turn a prospect into a clear sales opportunity before you reach out.</p></div><span>{hasWebsite?'Opportunity scanner':'New website opportunity'}</span></div>
   <div className="intelligenceGrid"><div className="intelForm">
-   <label className="field"><span className="fieldLabel">Choose a lead</span><select value={intelLead?.id||''} onChange={e=>selectLead(e.target.value)}><option value="">Select a prospect…</option>{leads.filter(l=>!['Won','Lost'].includes(l.status||'')).map(l=><option key={l.id} value={l.id}>{l.company} · {l.contact_name||'No contact'}</option>)}</select></label>
+   <label className="field"><span className="fieldLabel">Choose a lead</span><select value={intelLead?.id||''} onChange={e=>selectLead(e.target.value)}><option value="">Select a prospect…</option>{leads.filter(l=>!['Won','Lost'].includes(l.status||'')).map(l=><option key={l.id} value={l.id}>{l.company}{l.contact_name ? ` (${l.contact_name})` : ''} · {l.outreach_status==='Bounced' ? 'Bounced' : (l.status||'New Lead')} · {l.outreach_status||'Not Contacted'}</option>)}</select></label>
    <label className="field"><span className="fieldLabel">Website URL</span><input value={intelUrl} onChange={e=>setWebsite(e.target.value)} placeholder="https://example.com" inputMode="url"/>{intelLead&&!intelLead.website&&<small className="intelHint"><Globe2/> No website is saved for this lead. You can search likely business domains below.</small>}</label>
    {intelLead&&<div className="intelButtons"><button type="button" className="secondary" onClick={findWebsite} disabled={resolvingWebsite}>{resolvingWebsite?'Searching…':<><Search/>Find website & contacts</>}</button></div>}
    {resolverMessage&&<div className="intelHint" style={{marginTop:8}}><Globe2/>{resolverMessage}{resolverDiagnostics&&<small style={{display:'block',marginTop:4}}>Diagnostic: {resolverDiagnostics.discovered} web results discovered · {resolverDiagnostics.searched} direct domains checked.</small>}</div>}

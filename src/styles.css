@@ -523,3 +523,32 @@ tbody tr:hover{background:rgba(30,41,59,.38);box-shadow:inset 3px 0 0 rgba(245,1
 .selectColumn{width:52px;text-align:center}.selectColumn input{width:16px;height:16px;accent-color:#34d399;cursor:pointer}.checkboxLabel{display:inline-flex;align-items:center;gap:8px;white-space:nowrap;font-size:11px;color:#94a3b8}.selectionBar{position:sticky;bottom:16px;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:16px;margin:14px 0 0;padding:14px 16px;border:1px solid rgba(52,211,153,.22);border-radius:14px;background:rgba(15,23,42,.96);backdrop-filter:blur(14px);box-shadow:0 18px 45px rgba(0,0,0,.28)}.selectionBar>div{display:flex;align-items:center;gap:12px}.selectionBar strong{font-size:13px}.selectionBar span{color:#94a3b8;font-size:12px}.campaignBackdrop{z-index:100}.campaignModal{width:min(780px,calc(100vw - 32px));max-height:calc(100vh - 32px);overflow:auto}.campaignProgress{height:4px;border-radius:99px;background:rgba(148,163,184,.12);overflow:hidden;margin:4px 0 16px}.campaignProgress span{display:block;height:100%;background:#34d399;border-radius:inherit;transition:width .2s ease}.campaignLeadCard{display:grid;gap:4px;padding:14px;border:1px solid rgba(148,163,184,.12);border-radius:12px;background:rgba(30,41,59,.38);margin-bottom:14px}.campaignLeadCard small{color:#94a3b8}.campaignTabs{margin-bottom:14px}.campaignTabs button{display:inline-flex;align-items:center;justify-content:center;gap:7px}.campaignTabs svg{width:15px;height:15px}.campaignModal textarea{min-height:220px;resize:vertical;line-height:1.65}.campaignMeta{display:flex;justify-content:space-between;color:#64748b;font-size:11px;margin-top:7px}.campaignActions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:16px}.campaignActions .primary{min-width:170px}.campaignActions button{display:inline-flex;align-items:center;gap:7px}.campaignActions svg{width:16px;height:16px}@media(max-width:720px){.selectionBar{align-items:stretch;flex-direction:column}.selectionBar>div{justify-content:space-between;flex-wrap:wrap}.campaignActions{justify-content:stretch}.campaignActions button{flex:1}.checkboxLabel span{display:none}}
 
 .followupSuggestion{margin:0 0 14px;padding:14px;border:1px solid rgba(127,127,127,.18);border-radius:14px;background:rgba(127,127,127,.035)}.followupSuggestionHead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:10px}.followupSuggestionHead>div{display:flex;flex-direction:column;gap:3px}.followupSuggestionHead strong{font-size:14px}.followupSuggestionHead span{font-size:11px;opacity:.68}.followupSuggestionHead button{flex:0 0 auto;padding:8px 11px;border:1px solid rgba(127,127,127,.22);border-radius:9px;background:transparent;color:inherit;font-size:11px;font-weight:700;cursor:pointer}.followupSuggestionHead button:disabled{opacity:.45;cursor:not-allowed}.followupMessageBox{white-space:pre-wrap;padding:12px;border-radius:11px;background:rgba(0,0,0,.12);border:1px solid rgba(127,127,127,.12);font-size:12px;line-height:1.6;max-height:190px;overflow:auto}@media(max-width:520px){.followupSuggestionHead{flex-direction:column}.followupSuggestionHead button{width:100%}}
+
+
+/* Follow-up Queue */
+.followupQueuePanel{margin-top:24px}
+.followupQueueActions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.followupQueueActions .secondary{padding:8px 11px}
+.followupQueueGroups{display:grid;gap:18px}
+.followupQueueGroup{border:1px solid var(--border);border-radius:14px;overflow:hidden;background:var(--panel)}
+.followupQueueGroupHead{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 16px;background:var(--panel-strong)}
+.followupQueueGroupHead>div{display:flex;align-items:baseline;gap:10px}
+.followupQueueGroupHead strong{font-size:14px}
+.followupQueueGroupHead span{font-size:12px;color:var(--muted)}
+.followupDueBadge{padding:4px 8px;border-radius:999px;border:1px solid var(--border);font-size:11px!important;font-weight:700}
+.followupDueBadge.overdue{color:#f87171;border-color:rgba(248,113,113,.25);background:rgba(248,113,113,.08)}
+.followupDueBadge.today{color:#fbbf24;border-color:rgba(251,191,36,.25);background:rgba(251,191,36,.08)}
+.followupDueBadge.upcoming{color:#60a5fa;border-color:rgba(96,165,250,.25);background:rgba(96,165,250,.08)}
+.followupQueueList{display:grid}
+.followupQueueItem{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:16px;border-top:1px solid var(--border)}
+.followupQueueLead{min-width:0;flex:1}
+.followupQueueMeta{display:flex;align-items:center;gap:12px;margin:8px 0 0 46px;font-size:12px;color:var(--muted);flex-wrap:wrap}
+.followupQueueMeta strong{color:#34d399}
+.followupQueueNote{margin:8px 0 0 46px;font-size:12px;color:var(--muted);font-style:italic}
+.followupPrepareButton{white-space:nowrap}
+.followupQueueEmpty{margin-top:0}
+@media(max-width:760px){
+  .followupQueueGroupHead{align-items:flex-start;flex-direction:column}
+  .followupQueueItem{align-items:flex-start;flex-direction:column}
+  .followupPrepareButton{width:100%}
+}

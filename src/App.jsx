@@ -293,18 +293,23 @@ async function openOutreach(l){
  async function recordOutreachActivity(lead, type, message){
   const r=await supabase.from('crm_lead_activity').insert({lead_id:lead.id,activity_type:type,note:`Outreach sent/opened: ${message.trim()}`}).select().single()
   if(r.error){notify(r.error.message);return null}
-  const outreachUpdate={outreach_status:'Sent',last_contacted_at:new Date().toISOString(),...(lead.status==='New Lead'?{status:'Contacted'}:{})}
-  const updated=await supabase.from('crm_leads').update({...outreachUpdate,updated_at:new Date().toISOString()}).eq('id',lead.id).select().single()
-  if(!updated.error){setLeads(x=>x.map(l=>l.id===lead.id?updated.data:l));if(outreachLead?.id===lead.id)setOutreachLead(updated.data);if(intelLead?.id===lead.id)setIntelLead(updated.data);if(proposalLead?.id===lead.id)setProposalLead(updated.data)}
-  if(activityLead?.id===lead.id)setActivities(x=>[r.data,...x])
   const now=new Date().toISOString()
   const initialAlreadyRecorded=lead?.initial_outreach?.status&&lead.initial_outreach.status!=='not_sent'
-  const outreachUpdate={sequence_status:'active',updated_at:now,...(initialAlreadyRecorded?{}:{initial_outreach:{channel:type,sent_at:now,message_text:message.trim(),status:'initiated'}})}
-  if(lead.status==='New Lead')outreachUpdate.status='Contacted'
-  const u=await supabase.from('crm_leads').update(outreachUpdate).eq('id',lead.id).select().single()
-  if(u.error){notify('Outreach recorded, but lead sequence state update failed');return r.data}
-  setLeads(x=>x.map(a=>a.id===lead.id?u.data:a));setOutreachLead(u.data)
-  if(activityLead?.id===lead.id)setActivityLead(u.data)
+  const outreachUpdate={
+   outreach_status:'Sent',
+   last_contacted_at:now,
+   sequence_status:'active',
+   updated_at:now,
+   ...(lead.status==='New Lead'?{status:'Contacted'}:{}),
+   ...(initialAlreadyRecorded?{}:{initial_outreach:{channel:type,sent_at:now,message_text:message.trim(),status:'initiated'}})
+  }
+  const updated=await supabase.from('crm_leads').update(outreachUpdate).eq('id',lead.id).select().single()
+  if(updated.error){notify('Outreach recorded, but lead sequence state update failed');return r.data}
+  setLeads(x=>x.map(a=>a.id===lead.id?updated.data:a));setOutreachLead(updated.data)
+  if(activityLead?.id===lead.id)setActivityLead(updated.data)
+  if(intelLead?.id===lead.id)setIntelLead(updated.data)
+  if(proposalLead?.id===lead.id)setProposalLead(updated.data)
+  if(activityLead?.id===lead.id)setActivities(x=>[r.data,...x])
   if(lead.status==='New Lead'){
     const h=await supabase.from('crm_lead_activity').insert({lead_id:lead.id,activity_type:'Stage change',note:`Stage changed from New Lead to Contacted after ${type} outreach.`}).select().single()
     if(!h.error&&activityLead?.id===lead.id)setActivities(x=>[h.data,...x])

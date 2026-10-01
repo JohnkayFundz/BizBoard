@@ -23,7 +23,7 @@ import { OutreachCampaignModal } from './components/OutreachCampaignModal'
 
 const supabase = env ? createClient(env.VITE_SUPABASE_URL, env.VITE_SUPABASE_PUBLISHABLE_KEY) : null
 
-const stages=['New Lead','Contacted','Replied','Interested','Proposal Sent','Bounced / Correction Required','Won','Lost']
+const stages=['New Lead','Contacted','Replied','Interested','Proposal Sent','Won','Lost']
 const tone={ 'New Lead':'blue',Contacted:'indigo',Replied:'violet',Interested:'amber','Proposal Sent':'orange','Bounced / Correction Required':'red',Won:'green',Lost:'red' }
 const empty={company:'',contact_name:'',role:'',email:'',phone:'',website:'',instagram:'',niche:'',location:'',source:'Manual',status:'New Lead',deal_value:'',opportunity_type:'',next_follow_up:'',notes:''}
 const money=v=>new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:0}).format(Number(v||0))

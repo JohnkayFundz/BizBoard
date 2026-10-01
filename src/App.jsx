@@ -192,11 +192,15 @@ function openOutreach(l){
   const r=await supabase.from('crm_lead_activity').insert({lead_id:lead.id,activity_type:type,note:`Outreach sent/opened: ${message.trim()}`}).select().single()
   if(r.error){notify(r.error.message);return null}
   if(activityLead?.id===lead.id)setActivities(x=>[r.data,...x])
-  if(lead.status==='New Lead'){
-    const u=await supabase.from('crm_leads').update({status:'Contacted',outreach_status:'Sent',last_contacted_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq('id',lead.id).select().single()
-    if(u.error){notify('Outreach recorded, but stage update failed');return r.data}
-    setLeads(x=>x.map(a=>a.id===lead.id?u.data:a));setOutreachLead(u.data)
-    if(activityLead?.id===lead.id)setActivityLead(u.data)
+  const now=new Date().toISOString()
+  const wasNew=lead.status==='New Lead'
+  const initialAlreadyRecorded=lead?.initial_outreach?.status&&lead.initial_outreach.status!=='not_sent'
+  const outreachUpdate={status:wasNew?'Contacted':lead.status,outreach_status:'Sent',last_contacted_at:now,updated_at:now,...(initialAlreadyRecorded?{}:{initial_outreach:{channel:type,sent_at:now,message_text:message.trim(),status:'sent'}})}
+  const u=await supabase.from('crm_leads').update(outreachUpdate).eq('id',lead.id).select().single()
+  if(u.error){notify('Outreach recorded, but CRM state update failed');return r.data}
+  setLeads(x=>x.map(a=>a.id===lead.id?u.data:a));setOutreachLead(u.data)
+  if(activityLead?.id===lead.id)setActivityLead(u.data)
+  if(wasNew){
     const h=await supabase.from('crm_lead_activity').insert({lead_id:lead.id,activity_type:'Stage change',note:`Stage changed from New Lead to Contacted after ${type} outreach.`}).select().single()
     if(!h.error&&activityLead?.id===lead.id)setActivities(x=>[h.data,...x])
   }

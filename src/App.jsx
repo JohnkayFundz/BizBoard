@@ -23,9 +23,9 @@ import { OutreachCampaignModal } from './components/OutreachCampaignModal'
 
 const supabase = env ? createClient(env.VITE_SUPABASE_URL, env.VITE_SUPABASE_PUBLISHABLE_KEY) : null
 
-const stages=['New Lead','Contacted','Replied','Interested','Proposal Sent','Won','Lost']
-const tone={ 'New Lead':'blue',Contacted:'indigo',Replied:'violet',Interested:'amber','Proposal Sent':'orange',Won:'green',Lost:'red' }
-const empty={company:'',contact_name:'',role:'',email:'',phone:'',website:'',instagram:'',niche:'',location:'',source:'Manual',status:'New Lead',deal_value:'',next_follow_up:'',notes:''}
+const stages=['New Lead','Contacted','Replied','Interested','Proposal Sent','Bounced / Correction Required','Won','Lost']
+const tone={ 'New Lead':'blue',Contacted:'indigo',Replied:'violet',Interested:'amber','Proposal Sent':'orange','Bounced / Correction Required':'red',Won:'green',Lost:'red' }
+const empty={company:'',contact_name:'',role:'',email:'',phone:'',website:'',instagram:'',niche:'',location:'',source:'Manual',status:'New Lead',deal_value:'',opportunity_type:'',next_follow_up:'',notes:''}
 const money=v=>new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:0}).format(Number(v||0))
 const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
 const titleCaseName=value=>{const raw=String(value||'').trim().replace(/[_-]+/g,' ').replace(/\s+/g,' ');if(!raw)return '';return raw.split(' ').map(token=>{if(token.length<=4&&token===token.toUpperCase()&&/[A-Z]/.test(token))return token;return token.toLowerCase().replace(/(^|[’'])([a-z])/g,(_,p,l)=>p+l.toUpperCase()).replace(/^[a-z]/,l=>l.toUpperCase())}).join(' ')}
@@ -45,6 +45,7 @@ export default function App(){
  useEffect(()=>{if(!supabase){setLoading(false);return} supabase.auth.getSession().then(({data})=>{setSession(data.session);setLoading(false)});const {data:{subscription}}=supabase.auth.onAuthStateChange((_e,s)=>setSession(s));return()=>subscription.unsubscribe()},[])
  useEffect(()=>{const timer=window.setInterval(()=>setNow(new Date()),60000);return()=>window.clearInterval(timer)},[])
  useEffect(()=>{if(!session)return;load();const channel=supabase.channel('crm-live').on('postgres_changes',{event:'*',schema:'public',table:'crm_leads'},()=>load()).subscribe();return()=>{supabase.removeChannel(channel)}},[session])
+ useEffect(()=>{const sync=(current)=>current?.id?leads.find(l=>String(l.id)===String(current.id))||current:null;setIntelLead(sync(intelLead));setProposalLead(sync(proposalLead));setOutreachLead(sync(outreachLead));setActivityLead(sync(activityLead))},[leads])
  useEffect(()=>{if(!session||!intelLead?.id)return;loadIntelligenceHistory(intelLead.id)},[session,intelLead?.id])
  async function load(){const {data,error}=await supabase.from('crm_leads').select('*').order('updated_at',{ascending:false});if(error){notify(error.message);return []}const hydrated=(data||[]).map(l=>({...l,...calculateLeadScore(l)}));setLeads(hydrated);return hydrated}
  async function loadIntelligenceHistory(leadId){
@@ -71,14 +72,13 @@ export default function App(){
   const mapped={id:data.id,leadId:data.lead_id,websiteUrl:data.website_url,score:data.score,checklist:data.checklist,keyFindings:data.key_findings,keyOpportunities:data.key_opportunities,recommendedService:data.recommended_service,estimatedValue:Number(data.estimated_value||0),reportType:data.report_type,createdAt:data.created_at}
   setIntelligenceHistory(x=>[mapped,...x.filter(r=>r.id!==mapped.id)])
   setProposalAnalyses(x=>({...x,[mapped.leadId]:{score:mapped.score,checks:mapped.checklist,findings:mapped.keyFindings,opportunities:mapped.keyOpportunities,recommended_service:mapped.recommendedService,estimated_value:mapped.estimatedValue}}))
-  // Keep the CRM pipeline value aligned with the latest saved opportunity estimate.
-  if (mapped.estimatedValue > 0) {
-   const nextScore=calculateLeadScore({...intelLead,deal_value:mapped.estimatedValue}); const leadUpdate=await supabase.from('crm_leads').update({deal_value:mapped.estimatedValue,score:nextScore.score,score_tier:nextScore.scoreTier,updated_at:new Date().toISOString()}).eq('id',mapped.leadId).select().single()
-   if (!leadUpdate.error) {
-    setLeads(x=>x.map(l=>l.id===leadUpdate.data.id?leadUpdate.data:l))
-    if (intelLead?.id===leadUpdate.data.id) setIntelLead(leadUpdate.data)
-    if (proposalLead?.id===leadUpdate.data.id) setProposalLead(leadUpdate.data)
-   } else notify('Opportunity saved, but pipeline value sync failed: '+leadUpdate.error.message)
+  // Keep canonical CRM opportunity fields aligned without overwriting an existing deal value.
+  const inferredOpportunity=intelLead.opportunity_type||(mapped.reportType==='new_website'?'New Website':mapped.recommendedService)
+  const valueUpdate=Number(intelLead.deal_value||0)<=0&&mapped.estimatedValue>0?{deal_value:mapped.estimatedValue}:{}
+  const opportunityUpdate=!intelLead.opportunity_type?{opportunity_type:inferredOpportunity}:{}
+  if(Object.keys(valueUpdate).length||Object.keys(opportunityUpdate).length){
+   const nextLead={...intelLead,...valueUpdate,...opportunityUpdate}; const nextScore=calculateLeadScore(nextLead); const leadUpdate=await supabase.from('crm_leads').update({...valueUpdate,...opportunityUpdate,score:nextScore.score,score_tier:nextScore.scoreTier,updated_at:new Date().toISOString()}).eq('id',mapped.leadId).select().single()
+   if(!leadUpdate.error){setLeads(x=>x.map(l=>l.id===leadUpdate.data.id?leadUpdate.data:l));if(intelLead?.id===leadUpdate.data.id)setIntelLead(leadUpdate.data);if(proposalLead?.id===leadUpdate.data.id)setProposalLead(leadUpdate.data)} else notify('Opportunity saved, but canonical field sync failed: '+leadUpdate.error.message)
   }
   return mapped
  }
@@ -293,6 +293,9 @@ async function openOutreach(l){
  async function recordOutreachActivity(lead, type, message){
   const r=await supabase.from('crm_lead_activity').insert({lead_id:lead.id,activity_type:type,note:`Outreach sent/opened: ${message.trim()}`}).select().single()
   if(r.error){notify(r.error.message);return null}
+  const outreachUpdate={outreach_status:'Sent',last_contacted_at:new Date().toISOString(),...(lead.status==='New Lead'?{status:'Contacted'}:{})}
+  const updated=await supabase.from('crm_leads').update({...outreachUpdate,updated_at:new Date().toISOString()}).eq('id',lead.id).select().single()
+  if(!updated.error){setLeads(x=>x.map(l=>l.id===lead.id?updated.data:l));if(outreachLead?.id===lead.id)setOutreachLead(updated.data);if(intelLead?.id===lead.id)setIntelLead(updated.data);if(proposalLead?.id===lead.id)setProposalLead(updated.data)}
   if(activityLead?.id===lead.id)setActivities(x=>[r.data,...x])
   const now=new Date().toISOString()
   const initialAlreadyRecorded=lead?.initial_outreach?.status&&lead.initial_outreach.status!=='not_sent'
@@ -459,8 +462,10 @@ async function launchInstagramOutreach(){
  async function copyIntelligence(){if(!intelReport)return;try{await navigator.clipboard.writeText(intelReport);setIntelCopied(true);notify('Opportunity report copied');setTimeout(()=>setIntelCopied(false),1800)}catch{notify('Copy failed — select the report and copy it manually')}}
  function proposalDefaults(l){
   const analysis=proposalAnalyses[l?.id]||(intelResult&&intelLead?.id===l?.id?intelResult:null)
-  const service=analysis?.recommended_service||(/real estate|property|properties/i.test(`${l?.company||''} ${l?.niche||''}`)?'Business Website':'Business Website')
-  const price=analysis?.estimated_value||({ 'E-commerce Website':250000,'Website Redesign':120000,'Custom Web Application':350000,'React/MERN Development':200000 }[service]||150000)
+  const storedOpportunity=l?.opportunity_type||''
+  const opportunityService={'Catalogue Upgrade':'E-commerce Website','E-commerce UX Audit':'E-commerce Website','UX/Conversion Audit':'Website Redesign','UX/Conversion':'Website Redesign','Brand Platform':'Business Website','New Website':'Business Website'}[storedOpportunity]
+  const service=opportunityService||analysis?.recommended_service||'Business Website'
+  const price=Number(l?.deal_value||0)>0?String(l.deal_value):String(analysis?.estimated_value||({ 'E-commerce Website':250000,'Website Redesign':120000,'Custom Web Application':350000,'React/MERN Development':200000 }[service]||150000))
   const timeline=service==='E-commerce Website'?'10–14 business days':service==='Custom Web Application'?'14–21 business days':'7–10 business days'
   return {service,price:String(price),timeline}
  }
